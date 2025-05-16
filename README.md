@@ -1,359 +1,211 @@
 # KoemojiAuto - 自動文字起こしシステム
 
-音声・動画ファイルの文字起こしを自動処理するクロスプラットフォーム対応ツールです。
-Whisper（large）モデルによる高精度な文字起こしを、時間指定または24時間連続で実行できます。
+音声・動画ファイルから自動で文字起こしを行うクロスプラットフォーム対応ツールです。
+Whisperモデルを使用した高精度な文字起こしを、スケジュール実行または24時間連続で実行できます。
 
-## 主な特徴
+## 主な機能
 
-- 🎯 指定フォルダの音声・動画ファイルを自動検出
-- 🔄 30分ごとの定期スキャンで新規ファイルを即座に処理
-- 🚀 Whisperモデル（large）による高精度な文字起こし
-- 📊 優先度に基づいた効率的な処理順序
-- 📈 日次レポートの自動生成
-- ⏰ 時間制限モードと24時間連続モードの選択可能
-- 💻 Windows/macOS/Linux対応
+- **自動文字起こし**: 指定フォルダの音声・動画ファイルを自動検出して処理
+- **柔軟なスケジューリング**: 時間指定または24時間連続モード
+- **高精度**: Whisperモデル（tiny/small/medium/large）を選択可能
+- **シンプルな管理**: TUI（ターミナルUI）で簡単設定
+- **クロスプラットフォーム**: Windows/macOS/Linux対応
 
-## インストール
+## クイックスタート
 
-### 1. 必要なシステム要件
+### 1. 必要な環境
 
-- **Python 3.8以上**
-- **FFmpeg** (音声・動画処理に必須)
+- Python 3.8以上
+- FFmpeg（音声・動画処理用）
 
-### 2. FFmpegのインストール
-
-**Windows**
-```cmd
-# Chocolateyを使う場合
-choco install ffmpeg
-
-# または公式サイトからダウンロード
-# https://ffmpeg.org/download.html
-```
-
-**macOS**
-```bash
-# Homebrewを使う場合
-brew install ffmpeg
-```
-
-**Linux (Ubuntu/Debian)**
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
-
-### 3. Pythonパッケージのインストール
+### 2. インストール
 
 ```bash
+# リポジトリをクローン
 git clone https://github.com/your-repo/KoemojiAuto.git
 cd KoemojiAuto
+
+# 依存関係をインストール
 pip install -r requirements.txt
+
+# 自動実行を設定（毎日19:00に開始）
+./install.sh  # macOS/Linux
+install.bat   # Windows
 ```
 
-### 4. GPU使用時の追加設定（オプション）
+### 3. TUIで管理
 
-NVIDIA GPUを使用する場合：
 ```bash
-# CUDA対応版のfaster-whisperをインストール
-pip install faster-whisper[gpu]
+./tui.sh  # macOS/Linux
+tui.bat   # Windows
+```
+
+TUI画面：
+```
+  現在のREADMEのアスキーアート：
+  ╔═══════════════════════════════════════╗
+  ║          KoemojiAuto TUI              ║
+  ╠═══════════════════════════════════════╣
+  ║ 自動実行: 有効                        ║
+  ║ 開始時刻: 19:00                       ║
+  ║ Mode  : 時間指定 [07:00まで]          ║
+  ║ Model : large                         ║
+  ╚═══════════════════════════════════════╝
+
+  Commands:
+  [r] 実行  [t] 自動ON/OFF  [m] モデル  [c] モード  [h] 時刻設定  [q] 終了
 ```
 
 ## 使い方
 
-### 基本的な使用手順
+### 基本的な流れ
 
-1. **音声・動画ファイルを準備**
+1. **音声・動画ファイルを配置**
    ```bash
-   # inputフォルダにファイルを配置
+   # inputフォルダに音声・動画ファイルを入れる
    cp your_audio.mp3 input/
    cp your_video.mp4 input/
    ```
 
 2. **手動実行**
-   
-   **Windows**
-   ```cmd
-   start_koemoji.bat
-   ```
-   
-   **macOS/Linux**
    ```bash
-   ./start_koemoji.sh
-   # または
-   python main.py
+   ./start_koemoji.sh  # macOS/Linux
+   start_koemoji.bat   # Windows
    ```
 
-3. **結果確認**
+3. **結果を確認**
    ```bash
-   # outputフォルダで文字起こし結果を確認
-   ls output/
+   # outputフォルダに文字起こし結果が保存される
    cat output/your_audio.txt
    ```
 
-### 対応ファイル形式
+### TUIコマンド
 
-- 音声: `.mp3`, `.wav`, `.m4a`, `.flac`, `.ogg`, `.aac`
-- 動画: `.mp4`, `.mov`, `.avi`
+- `[r]` - 今すぐ実行
+- `[t]` - 自動実行のON/OFF切り替え
+- `[m]` - Whisperモデルの変更（tiny/small/medium/large）
+- `[c]` - 動作モード切り替え（時間指定/24時間）
+- `[h]` - 時刻設定（例: 19-7 で19:00開始、07:00終了）
+- `[q]` - 終了
 
-## 自動実行設定
+### 時刻設定の例
 
-### インストール
+TUIで`[h]`を押すと時刻設定ができます：
 
-**Windows:**
-```cmd
-# 管理者権限で実行
-install.bat
+```
+現在: 19:00 → 07:00
+時間帯: 20-8
+
+時間帯を 20:00 → 08:00 に変更しました
 ```
 
-**macOS/Linux:**
-```bash
-./install.sh
-```
+入力形式の例：
+- `19-7` → 19:00開始、07:00終了
+- `2000-0730` → 20:00開始、07:30終了
+- `9-17` → 09:00開始、17:00終了
 
-これで毎日19:00に自動起動するようになります。
+## 設定ファイル
 
-### 自動実行の一時停止/再開
-
-**Windows:**
-```cmd
-toggle.bat
-```
-
-**macOS/Linux:**
-```bash
-./toggle.sh
-```
-
-実行するたびに自動実行のON/OFFが切り替わります。
-
-### Linux - systemdサービス（24時間モード推奨）
-
-1. サービスファイル作成: `/etc/systemd/system/koemoji-auto.service`
-```ini
-[Unit]
-Description=KoemojiAuto Service
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 /path/to/KoemojiAuto/main.py
-WorkingDirectory=/path/to/KoemojiAuto
-Restart=always
-User=username
-
-[Install]
-WantedBy=multi-user.target
-```
-
-2. サービスの有効化と起動
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable koemoji-auto
-sudo systemctl start koemoji-auto
-```
-
-## 設定
-
-`config.json`で詳細な動作を設定できます：
+`config.json`で詳細設定が可能：
 
 ```json
 {
-  "input_folder": "input",          // 入力フォルダ
-  "output_folder": "output",        // 出力フォルダ
-  "continuous_mode": false,         // 24時間モード（false=時間制限モード）
-  "process_end_time": "07:00",      // 終了時刻（時間制限モードのみ）
-  "scan_interval_minutes": 30,      // ファイルスキャン間隔
-  "max_concurrent_files": 3,        // 同時処理ファイル数
-  "whisper_model": "large",         // Whisperモデル（tiny/small/medium/large）
-  "language": "ja",                 // 言語設定
-  "compute_type": "int8",           // 計算精度
-  "max_cpu_percent": 95,            // CPU使用率上限
-  "notification_enabled": true,     // デスクトップ通知
-  "daily_summary_time": "07:00"     // 日次サマリー生成時刻
-}
-```
-
-### 動作モード
-
-#### 1. 時間制限モード（デフォルト）
-- `continuous_mode: false`
-- タスクスケジューラ/cronで指定時刻に起動
-- `process_end_time`で設定した時刻に自動終了
-- 夜間処理に最適
-
-#### 2. 24時間連続モード
-- `continuous_mode: true`
-- 常時実行し続ける
-- 毎日`daily_summary_time`に日次サマリーを生成
-- リアルタイム処理に最適
-
-## 優先度システム
-
-処理順序は以下の要素で決定されます：
-
-1. **ファイル名のキーワード**（+5ポイント）
-   - `urgent` (緊急)
-   - `priority` (優先)
-   - `important` (重要)
-   
-2. **ファイルサイズ**
-   - 10MB未満: +3ポイント
-   - 50MB未満: +2ポイント
-   - 100MB未満: +1ポイント
-
-例: `urgent_meeting_20240105.mp3` は優先的に処理されます
-
-## トラブルシューティング
-
-### よくある問題と解決方法
-
-1. **文字起こしが開始されない**
-   - FFmpegがインストールされているか確認: `ffmpeg -version`
-   - inputフォルダにファイルがあるか確認
-   - 対応しているファイル形式か確認
-
-2. **メモリ不足エラー**
-   ```json
-   // config.jsonでモデルサイズを調整
-   "whisper_model": "medium"  // またはsmall
-   ```
-
-3. **CPU使用率が高すぎる**
-   ```json
-   // config.jsonで制限を調整
-   "max_cpu_percent": 70,
-   "max_concurrent_files": 1
-   ```
-
-4. **文字起こし精度が低い**
-   ```json
-   // より大きなモデルを使用
-   "whisper_model": "large"
-   ```
-
-### ログの確認
-
-```bash
-# リアルタイムでログを監視
-tail -f koemoji.log
-
-# エラーのみ表示
-grep ERROR koemoji.log
-```
-
-## 実際の運用例
-
-### 例1: 毎晩の配信アーカイブ処理
-```json
-{
+  "input_folder": "input",
+  "output_folder": "output",
   "continuous_mode": false,
-  "process_end_time": "06:00",
-  "max_concurrent_files": 2,
-  "whisper_model": "large"
+  "process_end_time": "07:00",
+  "scan_interval_minutes": 30,
+  "max_concurrent_files": 3,
+  "whisper_model": "large",
+  "language": "ja",
+  "compute_type": "int8",
+  "max_cpu_percent": 95,
+  "notification_enabled": true,
+  "daily_summary_time": "07:00"
 }
 ```
-- 19:00〜06:00に処理
-- 配信終了後にファイルを投入
-- 朝までに高精度で処理完了
 
-### 例2: 24時間リアルタイム処理
-```json
-{
-  "continuous_mode": true,
-  "scan_interval_minutes": 10,
-  "max_concurrent_files": 1,
-  "whisper_model": "medium"
-}
-```
-- 常時監視
-- 10分ごとに新規ファイルチェック
-- バランスの取れた処理
+### 主な設定項目
+
+- `continuous_mode`: 24時間モード（true）または時間指定モード（false）
+- `process_end_time`: 時間指定モードでの終了時刻
+- `whisper_model`: 使用するモデル（tiny/small/medium/large）
+- `scan_interval_minutes`: ファイルスキャン間隔（分）
+
+## 対応ファイル形式
+
+- **音声**: `.mp3`, `.wav`, `.m4a`, `.flac`, `.ogg`, `.aac`
+- **動画**: `.mp4`, `.mov`, `.avi`
 
 ## ファイル構成
 
 ```
 KoemojiAuto/
-├── main.py                  # メインプログラム
-├── config.json              # 設定ファイル
-├── requirements.txt         # Python依存関係
-├── install.bat/sh           # 自動起動設定
-├── uninstall.bat/sh         # 自動起動削除
-├── toggle.bat/sh            # 自動実行のON/OFF切り替え
-├── start_koemoji.bat/sh     # 手動実行スクリプト
-├── input/                   # 入力フォルダ（音声・動画を配置）
-├── output/                  # 出力フォルダ（文字起こし結果）
-├── reports/                 # レポートフォルダ（日次サマリー）
-└── koemoji.log             # ログファイル
+├── main.py              # メインプログラム
+├── tui.py               # ターミナルUI
+├── config.json          # 設定ファイル
+├── requirements.txt     # Python依存関係
+├── install.sh/bat       # 自動実行設定
+├── uninstall.sh/bat     # 自動実行削除
+├── toggle.sh/bat        # 自動実行ON/OFF
+├── start_koemoji.sh/bat # 手動実行
+├── tui.sh/bat          # TUI起動
+├── input/              # 音声・動画ファイルを配置
+├── output/             # 文字起こし結果
+└── reports/            # 日次レポート
 ```
 
 ## アンインストール
 
-### Windows
+```bash
+# 自動実行を削除
+./uninstall.sh  # macOS/Linux
+uninstall.bat   # Windows
 
-**自動アンインストール（推奨）**
-```cmd
-uninstall.bat
+# フォルダを削除（必要に応じて）
+rm -rf KoemojiAuto
 ```
 
-**手動アンインストール**
-1. タスクスケジューラから削除
-   ```cmd
-   # 管理者権限で実行
-   schtasks /delete /tn "KoemojiAutoProcessor" /f
-   ```
+## トラブルシューティング
 
-2. フォルダを削除
-   ```cmd
-   rmdir /s /q KoemojiAuto
-   ```
+### FFmpegがインストールされていない
 
-### macOS/Linux
-
-**自動アンインストール（推奨）**
 ```bash
-./uninstall.sh
+# macOS
+brew install ffmpeg
+
+# Ubuntu/Debian
+sudo apt-get install ffmpeg
+
+# Windows
+choco install ffmpeg
 ```
 
-**手動アンインストール**
-1. cronから削除
-   ```bash
-   # crontabを編集
-   crontab -e
-   # KoemojiAuto関連の行を削除
-   ```
+### メモリ不足エラー
 
-2. systemdサービスから削除（Linuxの場合）
-   ```bash
-   sudo systemctl stop koemoji-auto
-   sudo systemctl disable koemoji-auto
-   sudo rm /etc/systemd/system/koemoji-auto.service
-   sudo systemctl daemon-reload
-   ```
+TUIで`[m]`を押してより小さいモデルに変更：
+- `large` → `medium` → `small` → `tiny`
 
-3. launchdから削除（macOSの場合）
-   ```bash
-   launchctl unload ~/Library/LaunchAgents/com.koemoji.auto.plist
-   rm ~/Library/LaunchAgents/com.koemoji.auto.plist
-   ```
+### 文字起こしが開始されない
 
-4. フォルダを削除
-   ```bash
-   rm -rf KoemojiAuto
-   ```
+1. `input/`フォルダにファイルがあるか確認
+2. 対応している形式か確認
+3. `koemoji.log`でエラーを確認
 
-### Pythonパッケージのアンインストール（オプション）
+### 自動実行の状態確認
 
-インストールしたPythonパッケージを削除する場合：
 ```bash
-pip uninstall faster-whisper psutil notifypy
+# macOS
+launchctl list | grep koemoji
+
+# Windows
+schtasks /query /tn "KoemojiAutoProcessor"
+
+# またはTUIで確認
+./tui.sh
 ```
 
 ## ライセンス
 
-本ソフトウェアの商用利用をご希望の場合は、以下までご連絡ください：
+本ソフトウェアの商用利用については以下までご連絡ください：
 info.hirokitakamura@gmail.com
-
-## 貢献
-
-プルリクエストを歓迎します。大きな変更を行う場合は、まずissueを作成して変更内容について議論してください。
