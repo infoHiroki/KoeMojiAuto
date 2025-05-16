@@ -129,7 +129,7 @@ def main():
         # コマンド
         print("Commands:")
         print("[r] 実行  [t] 自動ON/OFF  [m] モデル  [c] モード  [h] 時刻設定")
-        print("[i] 入力フォルダ  [o] 出力フォルダ  [q] 終了")
+        print("[i] 入力フォルダ  [o] 出力フォルダ  [l] ログ表示  [q] 終了")
         print()
         
         cmd = input("> ").lower()
@@ -137,9 +137,17 @@ def main():
         if cmd == 'q':
             break
         elif cmd == 'r':
-            print("\n処理中...")
+            print("\n処理を開始します...")
             script = './start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat'
-            subprocess.run([script], check=False)
+            # バックグラウンドで実行
+            try:
+                subprocess.Popen([script])
+                print("\nバックグラウンドで処理が開始されました。")
+                print("進行状況はログファイル (koemoji.log) で確認できます。")
+                print("リアルタイムログ確認: tail -f koemoji.log")
+            except Exception as e:
+                print(f"\nエラーが発生しました: {e}")
+            input("\nEnterで続行...")
         elif cmd == 't':
             if auto_status == "未設定":
                 print("\nKoeMojiAutoがインストールされていません。")
