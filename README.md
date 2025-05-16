@@ -103,7 +103,7 @@ pip install faster-whisper[gpu]
 **自動設定（推奨）**
 ```cmd
 # 管理者権限で実行
-setup_scheduled_task.bat
+install.bat
 ```
 
 これで毎日19:00に自動起動します。
@@ -268,7 +268,7 @@ KoemojiAuto/
 ├── main.py                  # メインプログラム
 ├── config.json              # 設定ファイル
 ├── requirements.txt         # Python依存関係
-├── setup_scheduled_task.bat # Windows自動起動設定
+├── install.bat              # Windows自動起動設定
 ├── start_koemoji.bat        # Windows実行スクリプト
 ├── start_koemoji.sh         # Unix/Linux実行スクリプト
 ├── input/                   # 入力フォルダ（音声・動画を配置）
