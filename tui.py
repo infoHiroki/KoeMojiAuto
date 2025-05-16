@@ -57,9 +57,20 @@ def get_auto_status():
                     return "有効"
         else:  # macOS/Linux
             if 'darwin' in os.sys.platform:
-                result = subprocess.run(['launchctl', 'list'], 
+                # 特定のエージェントの状態を確認
+                result = subprocess.run(['launchctl', 'list', 'com.koemoji.auto'], 
                                       capture_output=True, text=True)
-                return "有効" if 'com.koemoji.auto' in result.stdout else "停止"
+                if result.returncode == 0:
+                    # エージェントが存在する場合、詳細を確認
+                    result2 = subprocess.run(['launchctl', 'print', 'user/' + str(os.getuid()) + '/com.koemoji.auto'], 
+                                           capture_output=True, text=True)
+                    if 'disabled' in result2.stdout.lower():
+                        return "停止"
+                    else:
+                        return "有効"
+                else:
+                    # エージェントが存在しない場合
+                    return "未設定"
         return "未設定"
     except:
         return "未設定"
@@ -88,21 +99,29 @@ def main():
         print("╔═══════════════════════════════════════╗")
         print("║          KoemojiAuto TUI              ║")
         print("╠═══════════════════════════════════════╣")
-        print("║" + format_line(f" 自動実行: {auto_status}", 39) + "║")
-        if config.get('continuous_mode'):
-            print("║" + format_line(" Mode  : 24時間", 39) + "║")
+        if auto_status == "未設定":
+            print("║                                       ║")
+            print("║    KoeMojiAutoがインストール          ║")
+            print("║    されていません                     ║")
+            print("║                                       ║")
+            print("║    install.sh または install.bat      ║")
+            print("║    を実行してください                 ║")
+            print("║                                       ║")
         else:
-            if auto_status in ["有効", "停止"]:
+            print("║" + format_line(f" 自動実行: {auto_status}", 39) + "║")
+            if config.get('continuous_mode'):
+                print("║" + format_line(" Mode  : 24時間", 39) + "║")
+            else:
                 print("║" + format_line(f" 開始時刻: {start_time}", 39) + "║")
-            end_time = config.get('process_end_time', '07:00')
-            print("║" + format_line(f" Mode  : 時間指定 [{end_time}まで]", 39) + "║")
-        print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
-        print("╠═══════════════════════════════════════╣")
-        # 現在のフォルダ設定を表示
-        input_folder = config.get('input_folder', '未設定')
-        output_folder = config.get('output_folder', '未設定')
-        print("║" + format_line(f" 入力: {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
-        print("║" + format_line(f" 出力: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
+                end_time = config.get('process_end_time', '07:00')
+                print("║" + format_line(f" Mode  : 時間指定 [{end_time}まで]", 39) + "║")
+            print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
+            print("╠═══════════════════════════════════════╣")
+            # 現在のフォルダ設定を表示
+            input_folder = config.get('input_folder', '未設定')
+            output_folder = config.get('output_folder', '未設定')
+            print("║" + format_line(f" 入力: {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
+            print("║" + format_line(f" 出力: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
         print("╚═══════════════════════════════════════╝")
         print()
         
@@ -121,8 +140,14 @@ def main():
             script = './start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat'
             subprocess.run([script], check=False)
         elif cmd == 't':
-            script = './toggle.sh' if os.name != 'nt' else 'toggle.bat'
-            subprocess.run([script], check=False)
+            if auto_status == "未設定":
+                print("\nKoeMojiAutoがインストールされていません。")
+                print("先にinstall.shまたはinstall.batを実行してください。")
+            else:
+                script = './toggle.sh' if os.name != 'nt' else 'toggle.bat'
+                result = subprocess.run([script], check=False, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print("\n自動実行の切り替えに失敗しました。")
             input("\nEnterで続行...")
         elif cmd == 'm':
             models = ['tiny', 'small', 'medium', 'large']
