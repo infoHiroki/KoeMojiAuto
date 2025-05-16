@@ -3,6 +3,7 @@ import os
 import json
 import subprocess
 import sys
+from datetime import datetime
 
 def clear():
     subprocess.run(['clear'] if os.name != 'nt' else ['cls'], shell=True)
@@ -221,6 +222,45 @@ def main():
                 config['output_folder'] = new_output
                 save_config(config)
                 print(f"出力フォルダを変更しました: {new_output}")
+            input("\nEnterで続行...")
+        elif cmd == 'l':
+            print("\n=== ログ表示 ===")
+            print("[1] 最新20行  [2] エラーのみ  [3] 本日のログ  [4] リアルタイム表示")
+            log_choice = input("\n選択: ").strip()
+            
+            if log_choice == '1':
+                print("\n--- 最新20行 ---")
+                result = subprocess.run(['tail', '-n', '20', 'koemoji.log'], 
+                                      capture_output=True, text=True)
+                print(result.stdout)
+            elif log_choice == '2':
+                print("\n--- エラーログ ---")
+                result = subprocess.run(['grep', 'ERROR', 'koemoji.log'], 
+                                      capture_output=True, text=True)
+                if result.stdout:
+                    print(result.stdout)
+                else:
+                    print("エラーは見つかりませんでした")
+            elif log_choice == '3':
+                print("\n--- 本日のログ ---")
+                today = datetime.now().strftime('%Y-%m-%d')
+                result = subprocess.run(['grep', today, 'koemoji.log'], 
+                                      capture_output=True, text=True)
+                if result.stdout:
+                    print(result.stdout)
+                else:
+                    print("本日のログはまだありません")
+            elif log_choice == '4':
+                print("\nリアルタイムログ表示を開始します (Ctrl+Cで終了)")
+                print("※新しいターミナルでtail -f koemoji.logを実行することをお勧めします")
+                input("\nEnterで続行...")
+                try:
+                    subprocess.run(['tail', '-f', 'koemoji.log'])
+                except KeyboardInterrupt:
+                    print("\nログ表示を終了しました")
+            else:
+                print("無効な選択です")
+            
             input("\nEnterで続行...")
 
 def format_time(time_str):
