@@ -145,7 +145,7 @@ def main():
                 subprocess.Popen([script])
                 print("\nバックグラウンドで処理が開始されました。")
                 print("進行状況はログファイル (koemoji.log) で確認できます。")
-                print("リアルタイムログ確認: tail -f koemoji.log")
+                print("TUIからログを確認: [l] ログ表示")
             except Exception as e:
                 print(f"\nエラーが発生しました: {e}")
             input("\nEnterで続行...")
@@ -224,40 +224,46 @@ def main():
                 print(f"出力フォルダを変更しました: {new_output}")
             input("\nEnterで続行...")
         elif cmd == 'l':
-            print("\n=== ログ表示 ===")
-            print("[1] 最新20行  [2] エラーのみ  [3] 本日のログ  [4] リアルタイム表示")
+            log_file = 'koemoji.log'
+            print(f"\n=== ログ表示 ({log_file}) ===")
+            print("[1] 最新20行  [2] エラーのみ  [3] 本日のログ  [4] 全ログ")
             log_choice = input("\n選択: ").strip()
             
             if log_choice == '1':
-                print("\n--- 最新20行 ---")
-                result = subprocess.run(['tail', '-n', '20', 'koemoji.log'], 
+                print(f"\n--- 最新20行 ({log_file}) ---")
+                result = subprocess.run(['tail', '-n', '20', log_file], 
                                       capture_output=True, text=True)
                 print(result.stdout)
             elif log_choice == '2':
-                print("\n--- エラーログ ---")
-                result = subprocess.run(['grep', 'ERROR', 'koemoji.log'], 
+                print(f"\n--- エラーログ ({log_file}) ---")
+                result = subprocess.run(['grep', 'ERROR', log_file], 
                                       capture_output=True, text=True)
                 if result.stdout:
                     print(result.stdout)
                 else:
                     print("エラーは見つかりませんでした")
             elif log_choice == '3':
-                print("\n--- 本日のログ ---")
+                print(f"\n--- 本日のログ ({log_file}) ---")
                 today = datetime.now().strftime('%Y-%m-%d')
-                result = subprocess.run(['grep', today, 'koemoji.log'], 
+                result = subprocess.run(['grep', today, log_file], 
                                       capture_output=True, text=True)
                 if result.stdout:
                     print(result.stdout)
                 else:
                     print("本日のログはまだありません")
             elif log_choice == '4':
-                print("\nリアルタイムログ表示を開始します (Ctrl+Cで終了)")
-                print("※新しいターミナルでtail -f koemoji.logを実行することをお勧めします")
-                input("\nEnterで続行...")
+                print(f"\n--- 全ログ ({log_file}) ---")
                 try:
-                    subprocess.run(['tail', '-f', 'koemoji.log'])
-                except KeyboardInterrupt:
-                    print("\nログ表示を終了しました")
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        if content:
+                            print(content)
+                        else:
+                            print("ログファイルは空です")
+                except FileNotFoundError:
+                    print(f"ログファイルが見つかりません: {log_file}")
+                except Exception as e:
+                    print(f"エラー: {e}")
             else:
                 print("無効な選択です")
             
