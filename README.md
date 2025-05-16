@@ -98,25 +98,34 @@ pip install faster-whisper[gpu]
 
 ## 自動実行設定
 
-### Windows - タスクスケジューラ
+### インストール
 
-**自動設定（推奨）**
+**Windows:**
 ```cmd
 # 管理者権限で実行
 install.bat
 ```
 
-これで毎日19:00に自動起動します。
-
-### macOS/Linux - cron
-
+**macOS/Linux:**
 ```bash
-# crontabを編集
-crontab -e
-
-# 以下を追加（パスは環境に合わせて変更）
-0 19 * * * /path/to/KoemojiAuto/start_koemoji.sh
+./install.sh
 ```
+
+これで毎日19:00に自動起動するようになります。
+
+### 自動実行の一時停止/再開
+
+**Windows:**
+```cmd
+toggle.bat
+```
+
+**macOS/Linux:**
+```bash
+./toggle.sh
+```
+
+実行するたびに自動実行のON/OFFが切り替わります。
 
 ### Linux - systemdサービス（24時間モード推奨）
 
@@ -268,9 +277,10 @@ KoemojiAuto/
 ├── main.py                  # メインプログラム
 ├── config.json              # 設定ファイル
 ├── requirements.txt         # Python依存関係
-├── install.bat              # Windows自動起動設定
-├── start_koemoji.bat        # Windows実行スクリプト
-├── start_koemoji.sh         # Unix/Linux実行スクリプト
+├── install.bat/sh           # 自動起動設定
+├── uninstall.bat/sh         # 自動起動削除
+├── toggle.bat/sh            # 自動実行のON/OFF切り替え
+├── start_koemoji.bat/sh     # 手動実行スクリプト
 ├── input/                   # 入力フォルダ（音声・動画を配置）
 ├── output/                  # 出力フォルダ（文字起こし結果）
 ├── reports/                 # レポートフォルダ（日次サマリー）
