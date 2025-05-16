@@ -2,6 +2,7 @@
 import os
 import json
 import subprocess
+import sys
 
 def clear():
     os.system('clear' if os.name != 'nt' else 'cls')
@@ -88,20 +89,27 @@ def main():
         print("║          KoemojiAuto TUI              ║")
         print("╠═══════════════════════════════════════╣")
         print("║" + format_line(f" 自動実行: {auto_status}", 39) + "║")
-        if auto_status in ["有効", "停止"]:
-            print("║" + format_line(f" 開始時刻: {start_time}", 39) + "║")
         if config.get('continuous_mode'):
             print("║" + format_line(" Mode  : 24時間", 39) + "║")
         else:
+            if auto_status in ["有効", "停止"]:
+                print("║" + format_line(f" 開始時刻: {start_time}", 39) + "║")
             end_time = config.get('process_end_time', '07:00')
             print("║" + format_line(f" Mode  : 時間指定 [{end_time}まで]", 39) + "║")
         print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
+        print("╠═══════════════════════════════════════╣")
+        # 現在のフォルダ設定を表示
+        input_folder = config.get('input_folder', '未設定')
+        output_folder = config.get('output_folder', '未設定')
+        print("║" + format_line(f" 入力: {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
+        print("║" + format_line(f" 出力: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
         print("╚═══════════════════════════════════════╝")
         print()
         
         # コマンド
         print("Commands:")
-        print("[r] 実行  [t] 自動ON/OFF  [m] モデル  [c] モード  [h] 時刻設定  [q] 終了")
+        print("[r] 実行  [t] 自動ON/OFF  [m] モデル  [c] モード  [h] 時刻設定")
+        print("[i] 入力フォルダ  [o] 出力フォルダ  [q] 終了")
         print()
         
         cmd = input("> ").lower()
@@ -110,9 +118,11 @@ def main():
             break
         elif cmd == 'r':
             print("\n処理中...")
-            os.system('./start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat')
+            script = './start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat'
+            subprocess.run([script], check=False)
         elif cmd == 't':
-            os.system('./toggle.sh' if os.name != 'nt' else 'toggle.bat')
+            script = './toggle.sh' if os.name != 'nt' else 'toggle.bat'
+            subprocess.run([script], check=False)
             input("\nEnterで続行...")
         elif cmd == 'm':
             models = ['tiny', 'small', 'medium', 'large']
@@ -156,6 +166,24 @@ def main():
                 else:
                     print("\n開始-終了 の形式で入力してください")
                     input("\nEnterで続行...")
+        elif cmd == 'i':
+            print(f"\n現在の入力フォルダ: {config.get('input_folder', '未設定')}")
+            new_input = input("新しい入力フォルダ (空白でキャンセル): ").strip()
+            if new_input:
+                new_input = os.path.expanduser(new_input)
+                config['input_folder'] = new_input
+                save_config(config)
+                print(f"入力フォルダを変更しました: {new_input}")
+            input("\nEnterで続行...")
+        elif cmd == 'o':
+            print(f"\n現在の出力フォルダ: {config.get('output_folder', '未設定')}")
+            new_output = input("新しい出力フォルダ (空白でキャンセル): ").strip()
+            if new_output:
+                new_output = os.path.expanduser(new_output)
+                config['output_folder'] = new_output
+                save_config(config)
+                print(f"出力フォルダを変更しました: {new_output}")
+            input("\nEnterで続行...")
 
 def format_time(time_str):
     """時刻文字列をHH:MM形式に変換"""

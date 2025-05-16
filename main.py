@@ -40,6 +40,10 @@ class KoemojiProcessor:
         # 処理中のファイル
         self.files_in_process = set()
         
+        # Whisperモデルのキャッシュ
+        self._whisper_model = None
+        self._model_config = None
+        
         # 今日の処理統計
         self.today_stats = {
             "queued": 0,
@@ -53,10 +57,29 @@ class KoemojiProcessor:
         """設定ファイルを読み込む"""
         try:
             if not os.path.exists(self.config_path):
+                # 初回使用時：フォルダ指定を求める
+                print("初回設定を行います。")
+                
+                # 入力フォルダの設定
+                while True:
+                    input_folder = input("入力フォルダのパスを入力してください: ").strip()
+                    if input_folder:
+                        input_folder = os.path.expanduser(input_folder)
+                        break
+                    print("入力が必要です。")
+                
+                # 出力フォルダの設定
+                while True:
+                    output_folder = input("出力フォルダのパスを入力してください: ").strip()
+                    if output_folder:
+                        output_folder = os.path.expanduser(output_folder)
+                        break
+                    print("入力が必要です。")
+                
                 # デフォルト設定を作成
                 self.config = {
-                    "input_folder": "input",
-                    "output_folder": "output",
+                    "input_folder": input_folder,
+                    "output_folder": output_folder,
                     "process_end_time": "07:00",
                     "scan_interval_minutes": 30,
                     "max_concurrent_files": 3,
@@ -70,7 +93,8 @@ class KoemojiProcessor:
                 # 設定を保存
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(self.config, f, indent=2, ensure_ascii=False)
-                logger.info(f"デフォルト設定を作成しました: {self.config_path}")
+                logger.info(f"設定を作成しました: {self.config_path}")
+                print(f"\n設定が保存されました: {self.config_path}")
             else:
                 # 既存の設定を読み込み
                 with open(self.config_path, 'r', encoding='utf-8') as f:
@@ -347,12 +371,15 @@ class KoemojiProcessor:
             model_size = model_size or self.config.get("whisper_model", "large")
             compute_type = self.config.get("compute_type", "int8")
             
-            # モデルのロード
-            logger.info(f"Whisperモデルをロード中: {model_size}")
-            model = WhisperModel(model_size, compute_type=compute_type)
+            # モデルが未ロードか設定が変わった場合のみ再ロード
+            if (self._whisper_model is None or 
+                self._model_config != (model_size, compute_type)):
+                logger.info(f"Whisperモデルをロード中: {model_size}")
+                self._whisper_model = WhisperModel(model_size, compute_type=compute_type)
+                self._model_config = (model_size, compute_type)
             
             # 文字起こし実行
-            segments, info = model.transcribe(
+            segments, info = self._whisper_model.transcribe(
                 file_path,
                 language=self.config.get("language", "ja"),
                 beam_size=5,

@@ -1,6 +1,6 @@
 {
-  "input_folder": "input",
-  "output_folder": "output",
+  "input_folder": "/Users/hirokitakamura/Documents/REC-Input",
+  "output_folder": "/Users/hirokitakamura/Documents/REC-Output",
   "continuous_mode": true,
   "process_end_time": "07:00",
   "scan_interval_minutes": 30,
