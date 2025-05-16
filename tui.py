@@ -5,7 +5,7 @@ import subprocess
 import sys
 
 def clear():
-    os.system('clear' if os.name != 'nt' else 'cls')
+    subprocess.run(['clear'] if os.name != 'nt' else ['cls'], shell=True)
 
 def load_config():
     try:
@@ -57,20 +57,21 @@ def get_auto_status():
                     return "有効"
         else:  # macOS/Linux
             if 'darwin' in os.sys.platform:
-                # 特定のエージェントの状態を確認
+                # まずplistファイルの存在を確認
+                plist_path = os.path.expanduser('~/Library/LaunchAgents/com.koemoji.auto.plist')
+                if not os.path.exists(plist_path):
+                    # plistファイルが存在しない = 本当にインストールされていない
+                    return "未設定"
+                
+                # plistファイルが存在する場合、ロード状態を確認
                 result = subprocess.run(['launchctl', 'list', 'com.koemoji.auto'], 
                                       capture_output=True, text=True)
                 if result.returncode == 0:
-                    # エージェントが存在する場合、詳細を確認
-                    result2 = subprocess.run(['launchctl', 'print', 'user/' + str(os.getuid()) + '/com.koemoji.auto'], 
-                                           capture_output=True, text=True)
-                    if 'disabled' in result2.stdout.lower():
-                        return "停止"
-                    else:
-                        return "有効"
+                    # ロードされている = 有効
+                    return "有効"
                 else:
-                    # エージェントが存在しない場合
-                    return "未設定"
+                    # plistは存在するがロードされていない = 停止
+                    return "停止"
         return "未設定"
     except:
         return "未設定"
@@ -159,7 +160,11 @@ def main():
             config['continuous_mode'] = not config.get('continuous_mode', False)
             save_config(config)
         elif cmd == 'h':
-            if config.get('continuous_mode', False):
+            if auto_status == "未設定":
+                print("\nKoeMojiAutoがインストールされていません。")
+                print("先にinstall.shまたはinstall.batを実行してください。")
+                input("\nEnterで続行...")
+            elif config.get('continuous_mode', False):
                 print("\n24時間モードでは時刻設定は不要です")
                 input("\nEnterで続行...")
             else:
@@ -177,7 +182,7 @@ def main():
                         if start_fmt and end_fmt:
                             # 開始時刻を更新
                             if os.name == 'nt':
-                                os.system(f'schtasks /change /tn "KoemojiAutoProcessor" /st {start_fmt}')
+                                subprocess.run(['schtasks', '/change', '/tn', 'KoemojiAutoProcessor', '/st', start_fmt])
                             # 終了時刻を更新
                             config['process_end_time'] = end_fmt
                             save_config(config)
