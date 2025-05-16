@@ -424,15 +424,53 @@ class KoemojiProcessor:
         try:
             logger.info(f"通知: {title} - {message}")
             
-            # デスクトップ通知
-            try:
-                from notifypy import Notify
-                notification = Notify()
-                notification.title = title
-                notification.message = message
-                notification.send()
-            except ImportError:
-                logger.warning("notifypyがインストールされていません。デスクトップ通知は表示されません。")
+            # macOS環境の場合はosascriptを使用
+            import platform
+            if platform.system() == "Darwin":  # macOS
+                try:
+                    import subprocess
+                    # メッセージ内の特殊文字をエスケープ
+                    escaped_message = message.replace('"', '\\"').replace('\n', ' ')
+                    escaped_title = title.replace('"', '\\"')
+                    
+                    # 通知センターへの通知を試みる
+                    script = f'display notification "{escaped_message}" with title "{escaped_title}"'
+                    result = subprocess.run(['osascript', '-e', script], 
+                                          capture_output=True, text=True, timeout=5)
+                    
+                    if result.returncode == 0:
+                        logger.debug("macOS通知を送信しました")
+                    else:
+                        # 通知センターが使えない場合はターミナルに表示
+                        print(f"\n{'='*50}")
+                        print(f"🔔 {title}")
+                        print(f"📢 {message}")
+                        print('='*50 + '\n')
+                        
+                        # 重要な通知の場合はビープ音を鳴らす
+                        if "完了" in title or "エラー" in title:
+                            try:
+                                subprocess.run(['osascript', '-e', 'beep'], capture_output=True)
+                            except:
+                                pass
+                        
+                except subprocess.TimeoutExpired:
+                    logger.debug("通知タイムアウト")
+                except Exception as e:
+                    logger.debug(f"macOS通知エラー: {e}")
+                    # エラー時もターミナルに表示
+                    print(f"\n[{title}] {message}")
+            else:
+                # 他のOSではnotifypyを試みる
+                try:
+                    from notifypy import Notify
+                    notification = Notify()
+                    notification.title = title
+                    notification.message = message
+                    notification.send()
+                except ImportError:
+                    # notifypyが使えない場合はターミナルに表示
+                    print(f"\n[{title}] {message}")
             
         except Exception as e:
             logger.error(f"通知送信中にエラーが発生しました: {e}")

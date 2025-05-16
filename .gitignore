@@ -28,11 +28,8 @@ pip-wheel-metadata/
 
 # Project specific
 input/*
-!input/.gitkeep
 output/*
-!output/.gitkeep
 reports/*
-!reports/.gitkeep
 processed_files.json
 koemoji.log
 *.log
@@ -44,6 +41,13 @@ koemoji.log
 htmlcov/
 .tox/
 .nox/
+
+# Test temporary directories
+test_input/
+test_output/
+tests/test_data/
+tests/manual/__pycache__/
+*.test.log
 
 # Environment
 .env
