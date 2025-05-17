@@ -6,7 +6,7 @@ REM Only start in 24-hour mode
 
 if exist "config.json" (
     REM Read config.json with Python to check continuous_mode
-    for /f %%i in ('python3 -c "import json; print(str(json.load(open('config.json')).get('continuous_mode', False)).lower())"') do set CONTINUOUS_MODE=%%i
+    for /f %%i in ('python -c "import json; print(str(json.load(open('config.json')).get('continuous_mode', False)).lower())"') do set CONTINUOUS_MODE=%%i
     
     if "%CONTINUOUS_MODE%"=="true" (
         echo 24-hour mode is enabled. Starting KoemojiAuto.

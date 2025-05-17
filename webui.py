@@ -13,7 +13,7 @@ def is_running():
         try:
             cmdline = proc.info.get('cmdline')
             if cmdline and len(cmdline) > 1:
-                if 'python' in cmdline[0].lower():
+                if 'python' in cmdline[0].lower() or 'python3' in cmdline[0].lower():
                     for arg in cmdline[1:]:
                         if arg == 'main.py' or arg.endswith('/main.py'):
                             return True
@@ -432,7 +432,7 @@ def status():
             try:
                 cmdline = proc.info.get('cmdline')
                 if cmdline and len(cmdline) > 1:
-                    if 'python' in cmdline[0].lower():
+                    if 'python' in cmdline[0].lower() or 'python3' in cmdline[0].lower():
                         for arg in cmdline[1:]:
                             if arg == 'main.py' or arg.endswith('/main.py'):
                                 pid = proc.pid

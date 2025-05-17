@@ -3,7 +3,7 @@ echo KoemojiAuto Status
 echo ==================
 
 set "FOUND=0"
-for /f "skip=1 tokens=1" %%A in ('wmic process where "CommandLine like '%%python%%main.py%%' or CommandLine like '%%python3%%main.py%%'" get ProcessId 2^>NUL') do (
+for /f "skip=1 tokens=1" %%A in ('wmic process where "CommandLine like '%%python%%main.py%%'" get ProcessId 2^>NUL') do (
     if "%%A" neq "" (
         echo Status: Running
         echo Process ID: %%A
