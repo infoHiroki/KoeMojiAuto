@@ -24,14 +24,29 @@ else:
     import fcntl
 
 # ロギング設定
+from logging.handlers import RotatingFileHandler
+
+# ログローテーションの設定
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# ファイルハンドラー（10MBでローテーション、5ファイル保持）
+file_handler = RotatingFileHandler(
+    "koemoji.log",
+    maxBytes=10*1024*1024,  # 10MB
+    backupCount=5           # 5ファイル保持
+)
+file_handler.setFormatter(log_formatter)
+
+# コンソールハンドラー
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+
+# ルートロガーの設定
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("koemoji.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[file_handler, console_handler]
 )
+
 logger = logging.getLogger("KoemojiAuto")
 
 class KoemojiProcessor:
