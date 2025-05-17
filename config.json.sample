@@ -6,7 +6,7 @@
   "process_end_time": "07:00",
   "scan_interval_minutes": 30,
   "max_concurrent_files": 3,
-  "whisper_model": "large",
+  "whisper_model": "medium",
   "language": "ja",
   "compute_type": "int8",
   "max_cpu_percent": 80

@@ -314,7 +314,7 @@ def index():
     <div class="container">
         <h1>
             <img src="/static/icon.png" alt="KoemojiAuto" class="app-icon">
-            KoemojiAuto WebUI
+            KoemojiAuto
         </h1>
         
         <div id="status" class="status">

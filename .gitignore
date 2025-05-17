@@ -1,83 +1,46 @@
-.CODE_REVIEW_SUMMARY.md
-
-# Python
+# Compiled Python files
 __pycache__/
-*.py[cod]
-*$py.class
 *.pyc
 *.pyo
 *.pyd
 .Python
-env/
+
+# Virtual environment
 venv/
 ENV/
-.venv/
-*.egg-info/
-.eggs/
-dist/
-build/
-pip-wheel-metadata/
+env/
+.venv
 
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IDE
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
 
-# Project specific
-input/*
-output/*
-reports/*
+# User configuration
+config.json
+
+# Processing results
 processed_files.json
+
+# Logs
 koemoji.log
 *.log
 
-# Test coverage
-.coverage
-.coverage.*
-.pytest_cache/
-htmlcov/
-.tox/
-.nox/
+# Audio files
+input/
+!input/.gitkeep
 
-# Test temporary directories
+# Output files
+output/
+!output/.gitkeep
+
+# Test files
 test_input/
 test_output/
-tests/test_data/
-tests/manual/__pycache__/
-*.test.log
-
-# Environment
-.env
-.env.local
-.env.production
-config.local.json
-
-# Models
-models/
-*.model
-*.onnx
-*.bin
 
 # Temporary files
 *.tmp
 *.temp
-*.bak
-*~
-
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# Linux
-.directory
+.cache/
