@@ -13,7 +13,15 @@ import logging
 from pathlib import Path
 from datetime import datetime, time as datetime_time
 import psutil
-import fcntl
+import platform
+
+# OS判定
+IS_WINDOWS = platform.system() == 'Windows'
+
+if IS_WINDOWS:
+    import msvcrt
+else:
+    import fcntl
 
 # ロギング設定
 logging.basicConfig(
@@ -568,18 +576,38 @@ class KoemojiProcessor:
     def acquire_lock(self):
         """ロックを取得（同時実行を防ぐ）"""
         try:
-            self.lock_file = open(self.lock_file_path, 'w')
-            try:
+            if IS_WINDOWS:
+                # Windows: ファイルが既に存在するかチェック
+                if self.lock_file_path.exists():
+                    # プロセスIDを読み取って、そのプロセスが生きているかチェック
+                    try:
+                        with open(self.lock_file_path, 'r') as f:
+                            pid = int(f.read().strip())
+                        # そのプロセスが存在するかチェック
+                        try:
+                            psutil.Process(pid)
+                            # プロセスが生きている
+                            raise IOError("Another process is already running")
+                        except psutil.NoSuchProcess:
+                            # プロセスが死んでいるので、古いロックファイルを削除
+                            os.remove(self.lock_file_path)
+                    except (ValueError, FileNotFoundError):
+                        # ファイル読み取りエラー、削除して続行
+                        if self.lock_file_path.exists():
+                            os.remove(self.lock_file_path)
+                
+                # 排他的にファイルを作成
+                self.lock_file = open(self.lock_file_path, 'x')
+            else:
+                # Unix/Linux/macOS: 通常通り
+                self.lock_file = open(self.lock_file_path, 'w')
                 fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                self.lock_file.write(str(os.getpid()))  # プロセスIDを書き込む
-                self.lock_file.flush()
-                return True
-            except IOError:
-                # ロックの取得に失敗した場合、ファイルを閉じる
-                self.lock_file.close()
-                self.lock_file = None
-                raise
-        except IOError as e:
+                
+            self.lock_file.write(str(os.getpid()))  # プロセスIDを書き込む
+            self.lock_file.flush()
+            return True
+            
+        except (IOError, OSError) as e:
             logger.warning(f"別のKoemojiAutoプロセスが既に実行中です: {e}")
             if self.lock_file:
                 try:
@@ -593,7 +621,9 @@ class KoemojiProcessor:
         """ロックを解放"""
         if self.lock_file:
             try:
-                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+                if not IS_WINDOWS:
+                    # Unix/Linux/macOS: fcntlを使ってアンロック
+                    fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
             except Exception as e:
                 logger.error(f"ロックの解放中にエラーが発生しました: {e}")
             finally:
