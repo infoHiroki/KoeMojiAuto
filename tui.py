@@ -56,43 +56,26 @@ def get_schedule_time():
     except:
         return "19:00"
 
-def get_auto_status():
-    """自動実行の状態を確認"""
+def is_installed():
+    """KoeMojiAutoがインストールされているか確認"""
     try:
         if os.name == 'nt':  # Windows
             result = subprocess.run(['schtasks', '/query', '/tn', 'KoemojiAutoProcessor'], 
                                   capture_output=True, text=True)
-            if result.returncode == 0:
-                if '無効' in result.stdout or 'Disabled' in result.stdout:
-                    return "停止"
-                else:
-                    return "有効"
+            return result.returncode == 0
         else:  # macOS/Linux
             if 'darwin' in os.sys.platform:
-                # まずplistファイルの存在を確認
                 plist_path = os.path.expanduser('~/Library/LaunchAgents/com.koemoji.auto.plist')
-                if not os.path.exists(plist_path):
-                    # plistファイルが存在しない = 本当にインストールされていない
-                    return "未設定"
-                
-                # plistファイルが存在する場合、ロード状態を確認
-                result = subprocess.run(['launchctl', 'list', 'com.koemoji.auto'], 
-                                      capture_output=True, text=True)
-                if result.returncode == 0:
-                    # ロードされている = 有効
-                    return "有効"
-                else:
-                    # plistは存在するがロードされていない = 停止
-                    return "停止"
-        return "未設定"
+                return os.path.exists(plist_path)
+        return False
     except:
-        return "未設定"
+        return False
 
 def main():
     while True:
         clear()
         config = load_config()
-        auto_status = get_auto_status()
+        installed = is_installed()
         start_time = get_schedule_time()
         
         # ステータス表示
@@ -112,35 +95,32 @@ def main():
         print("╔═══════════════════════════════════════╗")
         print("║          KoemojiAuto TUI              ║")
         print("╠═══════════════════════════════════════╣")
-        if auto_status == "未設定":
+        if not installed:
             print("║                                       ║")
-            print("║    KoeMojiAutoがインストール          ║")
-            print("║    されていません                     ║")
+            print("║    KoeMojiAuto is not installed       ║")
             print("║                                       ║")
-            print("║    install.sh または install.bat      ║")
-            print("║    を実行してください                 ║")
+            print("║    Run install.sh or install.bat      ║")
             print("║                                       ║")
         else:
-            print("║" + format_line(f" 自動実行: {auto_status}", 39) + "║")
             if config.get('continuous_mode'):
-                print("║" + format_line(" Mode  : 24時間", 39) + "║")
+                print("║" + format_line(" Mode  : 24-hour", 39) + "║")
             else:
-                print("║" + format_line(f" 開始時刻: {start_time}", 39) + "║")
+                print("║" + format_line(f" Schedule: {start_time}", 39) + "║")
                 end_time = config.get('process_end_time', '07:00')
-                print("║" + format_line(f" Mode  : 時間指定 [{end_time}まで]", 39) + "║")
+                print("║" + format_line(f" Mode  : Time-limited [until {end_time}]", 39) + "║")
             print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
             print("╠═══════════════════════════════════════╣")
             # 現在のフォルダ設定を表示
-            input_folder = config.get('input_folder', '未設定')
-            output_folder = config.get('output_folder', '未設定')
-            print("║" + format_line(f" 入力: {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
-            print("║" + format_line(f" 出力: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
+            input_folder = config.get('input_folder', 'Not set')
+            output_folder = config.get('output_folder', 'Not set')
+            print("║" + format_line(f" Input : {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
+            print("║" + format_line(f" Output: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
         print("╚═══════════════════════════════════════╝")
         print()
         
         # コマンド
         print("Commands:")
-        print("[r] 実行  [t] 自動ON/OFF  [m] モデル  [c] モード  [h] 時刻設定")
+        print("[r] 実行  [m] モデル  [c] モード  [h] 時刻設定")
         print("[i] 入力フォルダ  [o] 出力フォルダ  [l] ログ表示  [q] 終了")
         print()
         
@@ -161,26 +141,6 @@ def main():
             except Exception as e:
                 print(f"\nError occurred: {e}")
             input("\nPress Enter to continue...")
-        elif cmd == 't':
-            if auto_status == "Not configured" or auto_status == "未設定":
-                print("\nKoeMojiAuto is not installed.")
-                print("Please run install.sh or install.bat first.")
-            else:
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-                script = os.path.join(script_dir, 'toggle.sh' if os.name != 'nt' else 'toggle.bat')
-                print("\nToggling auto-execution status...")
-                # Windowsでは .bat ファイルを cmd.exe で実行
-                if os.name == 'nt':
-                    result = subprocess.run([script], capture_output=True, text=True, shell=True)
-                else:
-                    result = subprocess.run([script], capture_output=True, text=True)
-                if result.returncode == 0:
-                    print(result.stdout)
-                    # 正常終了後は続行せずにメイン画面に戻る
-                    input("\nPress Enter to continue...")
-                else:
-                    print("\nFailed to toggle auto-execution.")
-                    input("\nPress Enter to continue...")
         elif cmd == 'm':
             models = ['tiny', 'small', 'medium', 'large']
             current = config.get('whisper_model', 'large')
@@ -191,7 +151,7 @@ def main():
             config['continuous_mode'] = not config.get('continuous_mode', False)
             save_config(config)
         elif cmd == 'h':
-            if auto_status == "Not configured" or auto_status == "未設定":
+            if not installed:
                 print("\nKoeMojiAuto is not installed.")
                 print("Please run install.sh or install.bat first.")
                 input("\nPress Enter to continue...")

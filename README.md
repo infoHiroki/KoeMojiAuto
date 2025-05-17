@@ -108,7 +108,6 @@ TUI画面：
 ### TUIコマンド
 
 - `[r]` - 今すぐ実行
-- `[t]` - 自動実行のON/OFF切り替え
 - `[m]` - Whisperモデルの変更（tiny/small/medium/large）
 - `[c]` - 動作モード切り替え（時間指定/24時間）
 - `[h]` - 時刻設定（例: 19-7 で19:00開始、07:00終了）
@@ -180,7 +179,6 @@ KoeMojiAuto/
 ├── uninstall_windows.bat # Windows用アンインストーラー（推奨）
 ├── install.sh/bat       # 自動実行設定
 ├── uninstall.sh/bat     # 自動実行削除
-├── toggle.sh/bat        # 自動実行ON/OFF
 ├── start_koemoji.sh/bat # 手動実行
 ├── tui.sh/bat          # TUI起動
 ├── input/              # 音声・動画ファイルを配置
