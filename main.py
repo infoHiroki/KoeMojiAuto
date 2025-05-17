@@ -130,10 +130,7 @@ class KoemojiProcessor:
                     os.makedirs(folder_path, exist_ok=True)
                     logger.info(f"📁 {folder_key}を作成しました: {folder_path}")
                     
-            # レポートフォルダの作成
-            if not os.path.exists("reports"):
-                os.makedirs("reports", exist_ok=True)
-                logger.info("📊 レポートフォルダを作成しました: reports")
+            # レポートフォルダの作成（不要になったため削除）
                     
         except Exception as e:
             logger.error(f"❌ 設定の読み込み中にエラーが発生しました: {e}")
@@ -464,13 +461,13 @@ class KoemojiProcessor:
             # ログに記録
             logger.info(summary.replace('\n', ' '))
             
-            # サマリーファイルに保存
-            summary_dir = "reports"
-            os.makedirs(summary_dir, exist_ok=True)
-            
-            summary_file = os.path.join(summary_dir, f"daily_summary_{target_date}.txt")
-            with open(summary_file, 'w', encoding='utf-8') as f:
-                f.write(summary)
+            # サマリーファイルに保存（WebUIがあるため不要）
+            # summary_dir = "reports"
+            # os.makedirs(summary_dir, exist_ok=True)
+            # 
+            # summary_file = os.path.join(summary_dir, f"daily_summary_{target_date}.txt")
+            # with open(summary_file, 'w', encoding='utf-8') as f:
+            #     f.write(summary)
             
             # 通知送信
             self.send_notification(

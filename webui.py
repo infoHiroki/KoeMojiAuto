@@ -531,158 +531,81 @@ def index():
             }
         }
         
-        // カレンダー関連
-        let currentDate = new Date();
-        let selectedDate = null;
-        let summaryCache = {};
-        
-        function initCalendar() {
-            renderCalendar();
-            loadMonthSummaries();
-        }
-        
-        function renderCalendar() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-            const prevLastDay = new Date(year, month, 0);
+        // サマリー一覧関連
+        function loadSummaryList() {
+            const summaryList = document.getElementById('summaryList');
+            summaryList.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                    <p>読み込み中...</p>
+                </div>
+            `;
             
-            // 月表示を更新
-            const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-            document.getElementById('monthYear').textContent = `${year}年 ${monthNames[month]}`;
+            // 直近30日分のサマリーを取得
+            const end = new Date();
+            const start = new Date();
+            start.setDate(start.getDate() - 30);
             
-            // カレンダーをクリア
-            const calendar = document.getElementById('calendar');
-            calendar.innerHTML = '';
+            const summaries = [];
+            const promises = [];
             
-            // 曜日ヘッダー
-            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
-            weekdays.forEach(day => {
-                const dayHeader = document.createElement('div');
-                dayHeader.style.textAlign = 'center';
-                dayHeader.style.fontWeight = 'bold';
-                dayHeader.style.color = '#65676b';
-                dayHeader.textContent = day;
-                calendar.appendChild(dayHeader);
-            });
-            
-            // 前月の日を追加
-            const firstDayOfWeek = firstDay.getDay();
-            for (let i = firstDayOfWeek - 1; i >= 0; i--) {
-                const day = prevLastDay.getDate() - i;
-                createDayElement(new Date(year, month - 1, day), true);
+            // 各日のサマリーを取得
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().split('T')[0];
+                const url = `/summary/${dateStr}`;
+                promises.push(
+                    fetch(url)
+                        .then(res => res.json())
+                        .then(data => ({ date: dateStr, stats: data }))
+                        .catch(() => ({ date: dateStr, stats: null }))
+                );
             }
             
-            // 今月の日を追加
-            for (let day = 1; day <= lastDay.getDate(); day++) {
-                createDayElement(new Date(year, month, day), false);
-            }
-            
-            // 翌月の日を追加
-            const remainingDays = 42 - (firstDayOfWeek + lastDay.getDate());
-            for (let day = 1; day <= remainingDays; day++) {
-                createDayElement(new Date(year, month + 1, day), true);
-            }
-        }
-        
-        function createDayElement(date, inactive) {
-            const dayDiv = document.createElement('div');
-            dayDiv.className = 'calendar-day' + (inactive ? ' inactive' : '');
-            dayDiv.dataset.date = date.toISOString().split('T')[0];
-            
-            const dayNumber = document.createElement('div');
-            dayNumber.className = 'calendar-day-number';
-            dayNumber.textContent = date.getDate();
-            dayDiv.appendChild(dayNumber);
-            
-            const dayStats = document.createElement('div');
-            dayStats.className = 'calendar-day-stats';
-            dayStats.innerHTML = '<span style="color: #adb5bd;">-</span>';
-            dayDiv.appendChild(dayStats);
-            
-            dayDiv.addEventListener('click', () => selectDate(date));
-            
-            document.getElementById('calendar').appendChild(dayDiv);
-        }
-        
-        function changeMonth(direction) {
-            currentDate.setMonth(currentDate.getMonth() + direction);
-            renderCalendar();
-            loadMonthSummaries();
-        }
-        
-        function selectDate(date) {
-            selectedDate = date;
-            const dateStr = date.toISOString().split('T')[0];
-            
-            // アクティブなクラスを更新
-            document.querySelectorAll('.calendar-day').forEach(day => day.classList.remove('active'));
-            const selectedDiv = document.querySelector(`[data-date="${dateStr}"]`);
-            if (selectedDiv) selectedDiv.classList.add('active');
-            
-            // 詳細を表示
-            showDayDetail(dateStr);
-        }
-        
-        function loadMonthSummaries() {
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth() + 1;
-            
-            fetch(`/summaries/${year}/${month}`)
-                .then(response => response.json())
-                .then(data => {
-                    summaryCache = data;
-                    updateCalendarStats();
-                })
-                .catch(error => console.error('Failed to load summaries:', error));
-        }
-        
-        function updateCalendarStats() {
-            document.querySelectorAll('.calendar-day').forEach(dayDiv => {
-                const date = dayDiv.dataset.date;
-                const stats = summaryCache[date];
-                const statsDiv = dayDiv.querySelector('.calendar-day-stats');
+            Promise.all(promises).then(results => {
+                const filteredResults = results.filter(r => 
+                    r.stats && (r.stats.queued > 0 || r.stats.processed > 0 || r.stats.failed > 0)
+                );
                 
-                if (stats) {
-                    statsDiv.innerHTML = `
-                        <div style="color: #42b883;">✓ ${stats.processed}</div>
-                        ${stats.failed > 0 ? `<div style="color: #e74c3c;">✗ ${stats.failed}</div>` : ''}
-                    `;
-                } else {
-                    statsDiv.innerHTML = '<span style="color: #adb5bd;">-</span>';
+                if (filteredResults.length === 0) {
+                    summaryList.innerHTML = '<div class="no-data">処理履歴がありません</div>';
+                    return;
                 }
+                
+                // 日付の降順でソート
+                filteredResults.sort((a, b) => b.date.localeCompare(a.date));
+                
+                // 一覧を表示
+                summaryList.innerHTML = filteredResults.map(result => `
+                    <div class="summary-item">
+                        <div class="summary-date">${formatDate(result.date)}</div>
+                        <div class="summary-stats">
+                            <div class="stat-item">
+                                <span style="color: #42b883;">➕</span>
+                                <span class="stat-count">${result.stats.queued}</span>
+                                <span class="stat-label">キュー追加</span>
+                            </div>
+                            <div class="stat-item">
+                                <span style="color: #42b883;">✅</span>
+                                <span class="stat-count">${result.stats.processed}</span>
+                                <span class="stat-label">処理完了</span>
+                            </div>
+                            ${result.stats.failed > 0 ? `
+                                <div class="stat-item">
+                                    <span style="color: #e74c3c;">❌</span>
+                                    <span class="stat-count">${result.stats.failed}</span>
+                                    <span class="stat-label">処理失敗</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('');
             });
         }
         
-        function showDayDetail(dateStr) {
-            const stats = summaryCache[dateStr];
-            const detailDiv = document.getElementById('dayDetail');
-            
-            if (stats) {
-                detailDiv.innerHTML = `
-                    <h4>${dateStr} の処理結果</h4>
-                    <div class="stat-line">
-                        <span>➕ キュー追加</span>
-                        <span>${stats.queued}件</span>
-                    </div>
-                    <div class="stat-line">
-                        <span>✅ 処理完了</span>
-                        <span>${stats.processed}件</span>
-                    </div>
-                    <div class="stat-line">
-                        <span>❌ 処理失敗</span>
-                        <span>${stats.failed}件</span>
-                    </div>
-                `;
-                detailDiv.classList.add('active');
-            } else {
-                detailDiv.innerHTML = `
-                    <h4>${dateStr}</h4>
-                    <p style="text-align: center; color: #adb5bd;">この日の処理はありません</p>
-                `;
-                detailDiv.classList.add('active');
-            }
+        function formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const weeks = ['日', '月', '火', '水', '木', '金', '土'];
+            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${weeks[date.getDay()]})`;
         }
         
         // 初期化
@@ -753,6 +676,12 @@ def log():
     except:
         return "ログファイルが見つかりません"
 
+@app.route('/summary/<date_str>')
+def get_date_summary(date_str):
+    """指定日のサマリーを取得"""
+    stats = collect_stats_from_log(date_str)
+    return jsonify(stats)
+
 @app.route('/summaries/<int:year>/<int:month>')
 def get_month_summaries(year, month):
     """指定月のサマリーを取得"""
@@ -785,16 +714,16 @@ def collect_stats_from_log(target_date):
         
         with open(log_path, 'r', encoding='utf-8') as f:
             for line in f:
-                # 日付が含まれているか確認
-                if target_date not in line:
+                # ログの日付部分（行頭）と一致するかチェック
+                if not line.startswith(target_date):
                     continue
                 
-                # 各種イベントをカウント
-                if "➕ キューに追加" in line:
+                # 各種イベントをカウント（絵文字あり・なし両方に対応）
+                if "➕ キューに追加" in line or "キューに追加:" in line:
                     stats["queued"] += 1
-                elif "✅ 文字起こし完了" in line:
+                elif "✅ 文字起こし完了" in line or "文字起こし完了:" in line:
                     stats["processed"] += 1
-                elif "❌ 文字起こし失敗" in line:
+                elif "❌ 文字起こし失敗" in line or "文字起こし失敗:" in line:
                     stats["failed"] += 1
         
         return stats
