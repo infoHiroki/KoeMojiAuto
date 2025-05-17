@@ -13,6 +13,7 @@ import logging
 from pathlib import Path
 from datetime import datetime, time as datetime_time
 import psutil
+import fcntl
 
 # ロギング設定
 logging.basicConfig(
@@ -32,6 +33,10 @@ class KoemojiProcessor:
         self.load_config()
         self.processing_queue = []
         self.processed_files = set()
+        
+        # ロックファイルのパス
+        self.lock_file_path = Path("koemoji.lock")
+        self.lock_file = None
         
         # 処理済みファイル記録の読み込み
         self.processed_history_path = Path("processed_files.json")
@@ -80,6 +85,7 @@ class KoemojiProcessor:
                 self.config = {
                     "input_folder": input_folder,
                     "output_folder": output_folder,
+                    "process_start_time": "19:00",
                     "process_end_time": "07:00",
                     "scan_interval_minutes": 30,
                     "max_concurrent_files": 3,
@@ -119,6 +125,7 @@ class KoemojiProcessor:
             self.config = {
                 "input_folder": "input",
                 "output_folder": "output",
+                "process_start_time": "19:00",
                 "process_end_time": "07:00",
                 "max_concurrent_files": 1,
                 "whisper_model": "tiny",
@@ -502,9 +509,47 @@ class KoemojiProcessor:
         except Exception as e:
             logger.error(f"通知送信中にエラーが発生しました: {e}")
     
+    def acquire_lock(self):
+        """ロックを取得（同時実行を防ぐ）"""
+        try:
+            self.lock_file = open(self.lock_file_path, 'w')
+            fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.lock_file.write(str(os.getpid()))  # プロセスIDを書き込む
+            self.lock_file.flush()
+            return True
+        except IOError as e:
+            logger.warning(f"別のKoemojiAutoプロセスが既に実行中です: {e}")
+            if self.lock_file:
+                self.lock_file.close()
+                self.lock_file = None
+            return False
+    
+    def release_lock(self):
+        """ロックを解放"""
+        if self.lock_file:
+            try:
+                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+                self.lock_file.close()
+                self.lock_file = None
+                # ロックファイルを削除
+                if self.lock_file_path.exists():
+                    os.remove(self.lock_file_path)
+            except Exception as e:
+                logger.error(f"ロックの解放中にエラーが発生しました: {e}")
+    
     def run(self):
         """メイン処理ループ"""
         try:
+            # ロックを取得
+            if not self.acquire_lock():
+                logger.error("既に別のKoemojiAutoプロセスが実行中です。")
+                if self.config.get("notification_enabled", True):
+                    self.send_notification(
+                        "KoemojiAutoエラー",
+                        "既に別のプロセスが実行中です。"
+                    )
+                return
+            
             logger.info("KoemojiAuto処理を開始しました")
             
             # 開始通知
@@ -518,6 +563,7 @@ class KoemojiProcessor:
             continuous_mode = self.config.get("continuous_mode", False)
             if continuous_mode:
                 logger.info("24時間連続モードで動作します")
+                end_time = None  # 24時間モードでは終了時刻はない
             else:
                 end_time = self.get_end_time()
                 logger.info(f"時間制限モードで動作します（終了時刻: {end_time}）")
@@ -531,7 +577,7 @@ class KoemojiProcessor:
             self.process_queued_files()
             
             # メインループ
-            while continuous_mode or datetime.now().time() < end_time:
+            while continuous_mode or (end_time and datetime.now().time() < end_time):
                 current_time = time.time()
                 
                 # 定期的にファイルをスキャン
@@ -593,6 +639,8 @@ class KoemojiProcessor:
         except Exception as e:
             logger.error(f"処理中にエラーが発生しました: {e}")
         finally:
+            # ロックを解放
+            self.release_lock()
             logger.info("KoemojiAutoを終了しました")
 
 

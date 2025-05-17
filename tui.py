@@ -6,21 +6,32 @@ import sys
 from datetime import datetime
 
 def clear():
-    subprocess.run(['clear'] if os.name != 'nt' else ['cls'], shell=True)
+    if os.name != 'nt':
+        subprocess.run(['clear'])
+    else:
+        subprocess.run(['cls'], shell=True)
 
 def load_config():
     try:
-        with open('config.json', 'r') as f:
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+        with open(config_path, 'r') as f:
             return json.load(f)
     except:
         return {}
 
 def save_config(config):
-    with open('config.json', 'w') as f:
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.json')
+    with open(config_path, 'w') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
 def get_schedule_time():
     """スケジュールの開始時刻を取得"""
+    # まずconfig.jsonから取得を試みる
+    config = load_config()
+    if 'process_start_time' in config:
+        return config['process_start_time']
+    
+    # config.jsonにない場合は既存の方法で取得
     try:
         if os.name == 'nt':
             result = subprocess.run(['schtasks', '/query', '/tn', 'KoemojiAutoProcessor', '/v', '/fo', 'list'], 
@@ -139,7 +150,8 @@ def main():
             break
         elif cmd == 'r':
             print("\n処理を開始します...")
-            script = './start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat'
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script = os.path.join(script_dir, 'start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat')
             # バックグラウンドで実行
             try:
                 subprocess.Popen([script])
@@ -154,7 +166,8 @@ def main():
                 print("\nKoeMojiAutoがインストールされていません。")
                 print("先にinstall.shまたはinstall.batを実行してください。")
             else:
-                script = './toggle.sh' if os.name != 'nt' else 'toggle.bat'
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                script = os.path.join(script_dir, 'toggle.sh' if os.name != 'nt' else 'toggle.bat')
                 result = subprocess.run([script], check=False, capture_output=True, text=True)
                 if result.returncode != 0:
                     print("\n自動実行の切り替えに失敗しました。")
@@ -189,7 +202,8 @@ def main():
                         end_fmt = format_time(end)
                         
                         if start_fmt and end_fmt:
-                            # 終了時刻を更新
+                            # 開始時刻と終了時刻を更新
+                            config['process_start_time'] = start_fmt
                             config['process_end_time'] = end_fmt
                             save_config(config)
                             
@@ -234,7 +248,8 @@ def main():
                 print(f"出力フォルダを変更しました: {new_output}")
             input("\nEnterで続行...")
         elif cmd == 'l':
-            log_file = 'koemoji.log'
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            log_file = os.path.join(script_dir, 'koemoji.log')
             print(f"\n=== ログ表示 ({log_file}) ===")
             print("[1] 最新20行  [2] エラーのみ  [3] 本日のログ  [4] 全ログ")
             log_choice = input("\n選択: ").strip()

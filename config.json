@@ -2,6 +2,7 @@
   "input_folder": "/Users/hirokitakamura/Documents/REC-Input",
   "output_folder": "/Users/hirokitakamura/Documents/REC-Output",
   "continuous_mode": false,
+  "process_start_time": "19:00",
   "process_end_time": "07:00",
   "scan_interval_minutes": 30,
   "max_concurrent_files": 3,
