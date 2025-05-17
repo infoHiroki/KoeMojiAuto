@@ -2,6 +2,14 @@
 
 echo "KoemojiAuto自動起動設定をインストールしています..."
 
+# 引数から開始時刻を取得（なければデフォルト19:00）
+START_TIME=${1:-"19:00"}
+
+# 時刻を時と分に分割
+IFS=':' read -r START_HOUR START_MINUTE <<< "$START_TIME"
+
+echo "開始時刻: $START_TIME"
+
 # 現在のディレクトリを取得
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -23,8 +31,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     <string>com.koemoji.auto</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$SCRIPT_DIR/start_koemoji.sh</string>
+        <string>$SCRIPT_DIR/check_and_start.sh</string>
     </array>
+    <key>RunAtLoad</key>
+    <true/>
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
@@ -44,7 +54,9 @@ EOF
     launchctl unload "$PLIST_FILE" 2>/dev/null
     launchctl load "$PLIST_FILE"
     
-    echo "完了！毎日19時にKoemojiAuto処理が自動的に開始されます。"
+    echo "完了！"
+    echo "- 24時間モード: PC起動時に自動的に開始されます"
+    echo "- 時間指定モード: 毎日19時に自動的に開始されます"
     echo "設定を確認: launchctl list | grep koemoji"
     
 else
@@ -74,6 +86,7 @@ fi
 
 # 実行権限を付与
 chmod +x "$SCRIPT_DIR/start_koemoji.sh"
+chmod +x "$SCRIPT_DIR/check_and_start.sh"
 
 echo ""
 echo "手動実行: $SCRIPT_DIR/start_koemoji.sh"

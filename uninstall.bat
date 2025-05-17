@@ -5,11 +5,21 @@ echo.
 
 rem タスクスケジューラから削除
 echo タスクスケジューラから削除しています...
+
+rem 定時実行タスクを削除
 schtasks /delete /tn "KoemojiAutoProcessor" /f >nul 2>&1
 if %errorlevel%==0 (
-    echo タスクスケジューラから削除しました。
+    echo 定時実行タスクを削除しました。
 ) else (
-    echo タスクスケジューラにタスクが見つかりませんでした。
+    echo 定時実行タスクが見つかりませんでした。
+)
+
+rem 起動時実行タスクを削除
+schtasks /delete /tn "KoemojiAutoStartup" /f >nul 2>&1
+if %errorlevel%==0 (
+    echo 起動時実行タスクを削除しました。
+) else (
+    echo 起動時実行タスクが見つかりませんでした。
 )
 
 echo.
