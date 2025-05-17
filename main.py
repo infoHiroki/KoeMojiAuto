@@ -72,14 +72,9 @@ class KoemojiProcessor:
         self._whisper_model = None
         self._model_config = None
         
-        # 今日の処理統計
-        self.today_stats = {
-            "queued": 0,
-            "processed": 0,
-            "failed": 0,
-            "total_duration": 0,
-            "date": datetime.now().strftime("%Y-%m-%d")
-        }
+        # 日付ごとの処理統計
+        self.daily_stats = {}
+        self._ensure_daily_stats()  # 今日の統計を初期化
     
     def load_config(self):
         """設定ファイルを読み込む"""
@@ -211,6 +206,25 @@ class KoemojiProcessor:
         except:
             return False
     
+    def _ensure_daily_stats(self):
+        """今日の統計エントリを確保"""
+        today = datetime.now().strftime("%Y-%m-%d")
+        if today not in self.daily_stats:
+            self.daily_stats[today] = {
+                "queued": 0,
+                "processed": 0,
+                "failed": 0,
+                "total_duration": 0,
+                "date": today
+            }
+    
+    def record_stat(self, stat_type, value=1):
+        """統計を記録（日付ごと）"""
+        self._ensure_daily_stats()
+        today = datetime.now().strftime("%Y-%m-%d")
+        if stat_type in self.daily_stats[today]:
+            self.daily_stats[today][stat_type] += value
+    
     def load_processed_history(self):
         """処理済みファイルの履歴を読み込む"""
         try:
@@ -292,8 +306,8 @@ class KoemojiProcessor:
                 self.processing_queue.append(file_info)
                 logger.info(f"キューに追加: {file_name} (優先度: {file_info['priority']})")
                 
-                # 今日の統計を更新
-                self.today_stats["queued"] += 1
+                # 統計を記録
+                self.record_stat("queued")
             
             # 優先度に基づいてキューを並べ替え
             self.processing_queue.sort(key=lambda x: x["priority"], reverse=True)
@@ -410,9 +424,9 @@ class KoemojiProcessor:
                 self.processed_files.add(file_id)
                 self.save_processed_history()
                 
-                # 今日の統計を更新
-                self.today_stats["processed"] += 1
-                self.today_stats["total_duration"] += processing_time
+                # 統計を記録
+                self.record_stat("processed")
+                self.record_stat("total_duration", processing_time)
                 
                 # 通知
                 if self.config.get("notification_enabled", True):
@@ -422,8 +436,8 @@ class KoemojiProcessor:
                     )
             else:
                 logger.error(f"文字起こし失敗: {file_name}")
-                # 今日の統計を更新
-                self.today_stats["failed"] += 1
+                # 統計を記録
+                self.record_stat("failed")
                 
                 # エラー通知
                 if self.config.get("notification_enabled", True):
@@ -434,8 +448,8 @@ class KoemojiProcessor:
         
         except Exception as e:
             logger.error(f"ファイル処理中にエラーが発生しました: {file_path} - {e}")
-            # 今日の統計を更新
-            self.today_stats["failed"] += 1
+            # 統計を記録
+            self.record_stat("failed")
             
             # エラー通知
             if self.config.get("notification_enabled", True):
@@ -484,21 +498,28 @@ class KoemojiProcessor:
             logger.error(f"文字起こし処理中にエラーが発生しました: {e}")
             return None
     
-    def generate_daily_summary(self):
-        """日次処理サマリーを生成"""
+    def generate_daily_summary_for_date(self, date_obj):
+        """指定日の処理サマリーを生成"""
         try:
-            today = datetime.now().strftime("%Y-%m-%d")
-            logger.info(f"{today}の日次サマリーを生成しています")
+            # 日付をフォーマット
+            target_date = date_obj.strftime("%Y-%m-%d")
+            logger.info(f"{target_date}の日次サマリーを生成しています")
             
-            # サマリー内容を収集
-            stats = self.today_stats
+            # 今日の統計を取得（存在しない場合はデフォルト値）
+            stats = self.daily_stats.get(target_date, {
+                "queued": 0,
+                "processed": 0,
+                "failed": 0,
+                "total_duration": 0,
+                "date": target_date
+            })
             
             # 平均処理時間を計算
             avg_duration = stats["total_duration"] / stats["processed"] if stats["processed"] > 0 else 0
             
             # サマリーメッセージを作成
             summary = (
-                f"Koemoji処理サマリー ({today})\n"
+                f"Koemoji処理サマリー ({target_date})\n"
                 f"------------------------\n"
                 f"キュー追加: {stats['queued']}件\n"
                 f"処理完了: {stats['processed']}件\n"
@@ -516,14 +537,14 @@ class KoemojiProcessor:
             summary_dir = "reports"
             os.makedirs(summary_dir, exist_ok=True)
             
-            summary_file = os.path.join(summary_dir, f"daily_summary_{today}.txt")
+            summary_file = os.path.join(summary_dir, f"daily_summary_{target_date}.txt")
             with open(summary_file, 'w', encoding='utf-8') as f:
                 f.write(summary)
             
             # 通知送信
             if self.config.get("notification_enabled", True):
                 self.send_notification(
-                    f"Koemoji日次サマリー ({today})",
+                    f"Koemoji日次サマリー ({target_date})",
                     f"処理完了: {stats['processed']}件\n"
                     f"処理失敗: {stats['failed']}件\n"
                     f"残りキュー: {len(self.processing_queue)}件"
@@ -531,6 +552,10 @@ class KoemojiProcessor:
         
         except Exception as e:
             logger.error(f"日次サマリー生成中にエラーが発生しました: {e}")
+    
+    def generate_daily_summary(self):
+        """今日の処理サマリーを生成（互換性のため残す）"""
+        self.generate_daily_summary_for_date(datetime.now().date())
     
     def send_notification(self, title, message):
         """通知を送信する"""
@@ -689,7 +714,7 @@ class KoemojiProcessor:
             
             scan_interval = self.config.get("scan_interval_minutes", 30) * 60  # 秒に変換
             last_scan_time = 0
-            last_summary_date = None
+            last_summary_date = datetime.now().date()  # 現在の日付で初期化
             
             # 初回スキャン
             self.scan_and_queue_files()
@@ -699,6 +724,9 @@ class KoemojiProcessor:
             while continuous_mode or (end_time and datetime.now().time() < end_time):
                 current_time = time.time()
                 
+                # 日付が変わったら新しい統計エントリを作成
+                self._ensure_daily_stats()
+                
                 # 定期的にファイルをスキャン
                 if current_time - last_scan_time >= scan_interval:
                     self.scan_and_queue_files()
@@ -707,27 +735,12 @@ class KoemojiProcessor:
                 # キューのファイルを処理
                 self.process_queued_files()
                 
-                # 24時間モードの場合、日次サマリーのタイミングをチェック
-                if continuous_mode:
-                    current_date = datetime.now().date()
-                    current_time_obj = datetime.now().time()
-                    summary_time_str = self.config.get("daily_summary_time", "07:00")
-                    summary_hour, summary_minute = map(int, summary_time_str.split(":"))
-                    summary_time = datetime_time(summary_hour, summary_minute)
-                    
-                    # 日次サマリーの時刻を過ぎて、まだ今日のサマリーを作成していない場合
-                    if current_time_obj >= summary_time and last_summary_date != current_date:
-                        self.generate_daily_summary()
-                        last_summary_date = current_date
-                        
-                        # 統計をリセット
-                        self.today_stats = {
-                            "queued": 0,
-                            "processed": 0,
-                            "failed": 0,
-                            "total_duration": 0,
-                            "date": current_date.strftime("%Y-%m-%d")
-                        }
+                # 日付が変わったらサマリーを生成
+                current_date = datetime.now().date()
+                if last_summary_date != current_date and last_summary_date is not None:
+                    # 前日のサマリーを生成
+                    self.generate_daily_summary_for_date(last_summary_date)
+                    last_summary_date = current_date
                 
                 # 短い待機
                 time.sleep(5)
