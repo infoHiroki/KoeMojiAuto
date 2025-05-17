@@ -189,15 +189,25 @@ def main():
                         end_fmt = format_time(end)
                         
                         if start_fmt and end_fmt:
-                            # 開始時刻を更新
-                            if os.name == 'nt':
-                                subprocess.run(['schtasks', '/change', '/tn', 'KoemojiAutoProcessor', '/st', start_fmt])
                             # 終了時刻を更新
                             config['process_end_time'] = end_fmt
                             save_config(config)
-                            print(f"\n時間帯を {start_fmt} → {end_fmt} に変更しました")
-                            if os.name != 'nt':
-                                print("※macOSでは開始時刻の変更にinstall.shの再実行が必要です")
+                            
+                            # OSごとの処理
+                            if os.name == 'nt':
+                                # Windowsの場合はschtasksで更新
+                                subprocess.run(['schtasks', '/change', '/tn', 'KoemojiAutoProcessor', '/st', start_fmt])
+                                print(f"\n時間帯を {start_fmt} → {end_fmt} に変更しました")
+                            else:
+                                # macOS/Linuxの場合はinstall.shを実行
+                                print(f"\n時間帯を {start_fmt} → {end_fmt} に変更しています...")
+                                result = subprocess.run(['./install.sh', start_fmt], 
+                                                      capture_output=True, text=True)
+                                if result.returncode == 0:
+                                    print("設定が更新されました")
+                                else:
+                                    print("エラーが発生しました:")
+                                    print(result.stderr)
                             input("\nEnterで続行...")
                         else:
                             print("\n無効な時刻形式です")

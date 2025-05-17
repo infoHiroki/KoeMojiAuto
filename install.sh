@@ -38,9 +38,9 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>19</integer>
+        <integer>$START_HOUR</integer>
         <key>Minute</key>
-        <integer>0</integer>
+        <integer>${START_MINUTE:-0}</integer>
     </dict>
     <key>StandardOutPath</key>
     <string>$SCRIPT_DIR/launchd.log</string>
@@ -56,7 +56,7 @@ EOF
     
     echo "完了！"
     echo "- 24時間モード: PC起動時に自動的に開始されます"
-    echo "- 時間指定モード: 毎日19時に自動的に開始されます"
+    echo "- 時間指定モード: 毎日${START_TIME}に自動的に開始されます"
     echo "設定を確認: launchctl list | grep koemoji"
     
 else
@@ -64,7 +64,7 @@ else
     echo "Linux環境を検出しました"
     
     # crontabに追加
-    CRON_CMD="0 19 * * * $SCRIPT_DIR/start_koemoji.sh"
+    CRON_CMD="$START_MINUTE $START_HOUR * * * $SCRIPT_DIR/start_koemoji.sh"
     
     # 既存のcrontabを取得
     crontab -l > /tmp/current_cron 2>/dev/null || true
@@ -80,7 +80,7 @@ else
     
     rm -f /tmp/current_cron
     
-    echo "完了！毎日19時にKoemojiAuto処理が自動的に開始されます。"
+    echo "完了！毎日${START_TIME}にKoemojiAuto処理が自動的に開始されます。"
     echo "設定を確認: crontab -l"
 fi
 
