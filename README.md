@@ -33,13 +33,30 @@ Whisperモデルを使用した高精度な文字起こしを、スケジュー�
 # リポジトリをクローン
 git clone https://github.com/infoHiroki/KoeMojiAuto.git
 cd KoeMojiAuto
+```
 
+#### Windows（推奨）
+```batch
+# 新しいインストーラーを使用
+install_windows.bat
+```
+
+#### Windows（従来の方法）
+```batch
+# 依存関係をインストール
+pip install -r requirements.txt
+
+# 自動実行を設定
+install.bat
+```
+
+#### macOS/Linux
+```bash
 # 依存関係をインストール
 pip install -r requirements.txt
 
 # 自動実行を設定（毎日19:00に開始）
-./install.sh  # macOS/Linux
-install.bat   # Windows
+./install.sh
 ```
 
 ### 3. TUIで管理
@@ -159,6 +176,8 @@ KoeMojiAuto/
 ├── tui.py               # ターミナルUI
 ├── config.json          # 設定ファイル
 ├── requirements.txt     # Python依存関係
+├── install_windows.bat  # Windows用インストーラー（推奨）
+├── uninstall_windows.bat # Windows用アンインストーラー（推奨）
 ├── install.sh/bat       # 自動実行設定
 ├── uninstall.sh/bat     # 自動実行削除
 ├── toggle.sh/bat        # 自動実行ON/OFF
@@ -173,6 +192,13 @@ KoeMojiAuto/
 
 ## アンインストール
 
+### Windows（推奨）
+```batch
+# 新しいアンインストーラーを使用（データをバックアップ）
+uninstall_windows.bat
+```
+
+### 従来の方法
 ```bash
 # 自動実行を削除
 ./uninstall.sh  # macOS/Linux
