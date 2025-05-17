@@ -119,7 +119,6 @@ class TestConfig:
                 "compute_type": "int8",
                 "max_cpu_percent": 95,
                 "notification_enabled": True,
-                "daily_summary_time": "08:00",
                 "continuous_mode": True
             }
             
@@ -129,4 +128,3 @@ class TestConfig:
             processor = KoemojiProcessor(config_path)
             
             assert processor.config["continuous_mode"] is True
-            assert processor.config["daily_summary_time"] == "08:00"

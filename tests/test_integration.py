@@ -183,7 +183,6 @@ class TestIntegration:
             processor = KoemojiProcessor(config_path)
             processor.config.update({
                 "continuous_mode": True,
-                "daily_summary_time": "07:00"
             })
             
             # 日次サマリー時刻のチェックをシミュレート

@@ -9,7 +9,5 @@
   "whisper_model": "large",
   "language": "ja",
   "compute_type": "int8",
-  "max_cpu_percent": 80,
-  "notification_enabled": true,
-  "daily_summary_time": "07:00"
+  "max_cpu_percent": 80
 }

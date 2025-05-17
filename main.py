@@ -110,9 +110,7 @@ class KoemojiProcessor:
                     "whisper_model": "large",
                     "language": "ja",
                     "compute_type": "int8",
-                    "max_cpu_percent": 95,
-                    "notification_enabled": True,
-                    "daily_summary_time": "07:00"
+                    "max_cpu_percent": 95
                 }
                 # 設定を保存
                 with open(self.config_path, 'w', encoding='utf-8') as f:
@@ -163,7 +161,7 @@ class KoemojiProcessor:
                 raise ValueError(f"必須設定項目が不足しています: {field}")
         
         # 時刻形式のチェック
-        time_fields = ["process_start_time", "process_end_time", "daily_summary_time"]
+        time_fields = ["process_start_time", "process_end_time"]
         for field in time_fields:
             if field in self.config:
                 time_str = self.config[field]
@@ -299,47 +297,19 @@ class KoemojiProcessor:
                     "path": file_path,
                     "name": file_name,
                     "size": file_size,
-                    "queued_at": datetime.now().isoformat(),
-                    "priority": self.calculate_priority(file_path)
+                    "queued_at": datetime.now().isoformat()
                 }
                 
                 self.processing_queue.append(file_info)
-                logger.info(f"キューに追加: {file_name} (優先度: {file_info['priority']})")
+                logger.info(f"キューに追加: {file_name}")
                 
                 # 統計を記録
                 self.record_stat("queued")
-            
-            # 優先度に基づいてキューを並べ替え
-            self.processing_queue.sort(key=lambda x: x["priority"], reverse=True)
             
             logger.info(f"現在のキュー: {len(self.processing_queue)}件")
             
         except Exception as e:
             logger.error(f"キュースキャン中にエラーが発生しました: {e}")
-    
-    def calculate_priority(self, file_path):
-        """ファイルの処理優先度を計算"""
-        file_name = os.path.basename(file_path)
-        file_size = os.path.getsize(file_path)
-        
-        priority = 0
-        
-        # サイズが小さいファイルを優先
-        if file_size < 1024 * 1024 * 10:  # 10MB未満
-            priority += 3
-        elif file_size < 1024 * 1024 * 50:  # 50MB未満
-            priority += 2
-        elif file_size < 1024 * 1024 * 100:  # 100MB未満
-            priority += 1
-        
-        # 優先キーワードを含むファイル名を優先
-        priority_keywords = ["urgent", "priority", "important", "緊急", "優先"]
-        for keyword in priority_keywords:
-            if keyword.lower() in file_name.lower():
-                priority += 5
-                break
-        
-        return priority
     
     def process_queued_files(self):
         """キューにあるファイルを処理"""
@@ -429,22 +399,20 @@ class KoemojiProcessor:
                 self.record_stat("total_duration", processing_time)
                 
                 # 通知
-                if self.config.get("notification_enabled", True):
-                    self.send_notification(
-                        "Koemoji文字起こし完了",
-                        f"ファイル: {file_name}\n出力: {output_file}\n処理時間: {processing_time:.2f}秒"
-                    )
+                self.send_notification(
+                    "Koemoji文字起こし完了",
+                    f"ファイル: {file_name}\n出力: {output_file}\n処理時間: {processing_time:.2f}秒"
+                )
             else:
                 logger.error(f"文字起こし失敗: {file_name}")
                 # 統計を記録
                 self.record_stat("failed")
                 
                 # エラー通知
-                if self.config.get("notification_enabled", True):
-                    self.send_notification(
-                        "Koemoji文字起こしエラー",
-                        f"ファイル: {file_name}\n処理に失敗しました。"
-                    )
+                self.send_notification(
+                    "Koemoji文字起こしエラー",
+                    f"ファイル: {file_name}\n処理に失敗しました。"
+                )
         
         except Exception as e:
             logger.error(f"ファイル処理中にエラーが発生しました: {file_path} - {e}")
@@ -452,11 +420,10 @@ class KoemojiProcessor:
             self.record_stat("failed")
             
             # エラー通知
-            if self.config.get("notification_enabled", True):
-                self.send_notification(
-                    "Koemoji処理エラー",
-                    f"ファイル: {os.path.basename(file_path)}\nエラー: {e}"
-                )
+            self.send_notification(
+                "Koemoji処理エラー",
+                f"ファイル: {os.path.basename(file_path)}\nエラー: {e}"
+            )
         finally:
             # 処理中リストから削除
             if file_path in self.files_in_process:
@@ -542,13 +509,12 @@ class KoemojiProcessor:
                 f.write(summary)
             
             # 通知送信
-            if self.config.get("notification_enabled", True):
-                self.send_notification(
-                    f"Koemoji日次サマリー ({target_date})",
-                    f"処理完了: {stats['processed']}件\n"
-                    f"処理失敗: {stats['failed']}件\n"
-                    f"残りキュー: {len(self.processing_queue)}件"
-                )
+            self.send_notification(
+                f"Koemoji日次サマリー ({target_date})",
+                f"処理完了: {stats['processed']}件\n"
+                f"処理失敗: {stats['failed']}件\n"
+                f"残りキュー: {len(self.processing_queue)}件"
+            )
         
         except Exception as e:
             logger.error(f"日次サマリー生成中にエラーが発生しました: {e}")
@@ -558,60 +524,8 @@ class KoemojiProcessor:
         self.generate_daily_summary_for_date(datetime.now().date())
     
     def send_notification(self, title, message):
-        """通知を送信する"""
-        try:
-            logger.info(f"通知: {title} - {message}")
-            
-            # macOS環境の場合はosascriptを使用
-            import platform
-            if platform.system() == "Darwin":  # macOS
-                try:
-                    import subprocess
-                    # メッセージ内の特殊文字をエスケープ
-                    escaped_message = message.replace('"', '\\"').replace('\n', ' ')
-                    escaped_title = title.replace('"', '\\"')
-                    
-                    # 通知センターへの通知を試みる
-                    script = f'display notification "{escaped_message}" with title "{escaped_title}"'
-                    result = subprocess.run(['osascript', '-e', script], 
-                                          capture_output=True, text=True, timeout=5)
-                    
-                    if result.returncode == 0:
-                        logger.debug("macOS通知を送信しました")
-                    else:
-                        # 通知センターが使えない場合はターミナルに表示
-                        print(f"\n{'='*50}")
-                        print(f"🔔 {title}")
-                        print(f"📢 {message}")
-                        print('='*50 + '\n')
-                        
-                        # 重要な通知の場合はビープ音を鳴らす
-                        if "完了" in title or "エラー" in title:
-                            try:
-                                subprocess.run(['osascript', '-e', 'beep'], capture_output=True)
-                            except:
-                                pass
-                        
-                except subprocess.TimeoutExpired:
-                    logger.debug("通知タイムアウト")
-                except Exception as e:
-                    logger.debug(f"macOS通知エラー: {e}")
-                    # エラー時もターミナルに表示
-                    print(f"\n[{title}] {message}")
-            else:
-                # 他のOSではnotifypyを試みる
-                try:
-                    from notifypy import Notify
-                    notification = Notify()
-                    notification.title = title
-                    notification.message = message
-                    notification.send()
-                except ImportError:
-                    # notifypyが使えない場合はターミナルに表示
-                    print(f"\n[{title}] {message}")
-            
-        except Exception as e:
-            logger.error(f"通知送信中にエラーが発生しました: {e}")
+        """通知をログに記録する"""
+        logger.info(f"通知: {title} - {message}")
     
     def acquire_lock(self):
         """ロックを取得（同時実行を防ぐ）"""
@@ -643,8 +557,12 @@ class KoemojiProcessor:
                 self.lock_file = open(self.lock_file_path, 'w')
                 fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
                 
-            self.lock_file.write(str(os.getpid()))  # プロセスIDを書き込む
+            pid_str = str(os.getpid())
+            self.lock_file.write(pid_str)  # プロセスIDを書き込む
             self.lock_file.flush()
+            # macOSでの確実な書き込みのため
+            os.fsync(self.lock_file.fileno())
+            logger.debug(f"ロックファイルにPID {pid_str} を書き込みました")
             return True
             
         except (IOError, OSError) as e:
@@ -687,21 +605,19 @@ class KoemojiProcessor:
             # ロックを取得
             if not self.acquire_lock():
                 logger.error("既に別のKoemojiAutoプロセスが実行中です。")
-                if self.config.get("notification_enabled", True):
-                    self.send_notification(
-                        "KoemojiAutoエラー",
-                        "既に別のプロセスが実行中です。"
-                    )
+                self.send_notification(
+                    "KoemojiAutoエラー",
+                    "既に別のプロセスが実行中です。"
+                )
                 return
             
             logger.info("KoemojiAuto処理を開始しました")
             
             # 開始通知
-            if self.config.get("notification_enabled", True):
-                self.send_notification(
-                    "KoemojiAuto",
-                    "自動文字起こしサービスが開始されました"
-                )
+            self.send_notification(
+                "KoemojiAuto",
+                "自動文字起こしサービスが開始されました"
+            )
             
             # 24時間モードか時間制限モードかを確認
             continuous_mode = self.config.get("continuous_mode", False)
@@ -753,20 +669,19 @@ class KoemojiProcessor:
                 self.generate_daily_summary()
                 
                 # 終了通知
-                if self.config.get("notification_enabled", True):
-                    remaining = len(self.processing_queue)
-                    processed = self.today_stats["processed"]
-                    
-                    if remaining > 0:
-                        self.send_notification(
-                            "KoemojiAuto処理終了",
-                            f"処理完了: {processed}件\n残りキュー: {remaining}件"
-                        )
-                    else:
-                        self.send_notification(
-                            "KoemojiAuto処理完了",
-                            f"すべてのファイル({processed}件)の処理が完了しました"
-                        )
+                remaining = len(self.processing_queue)
+                processed = self.today_stats["processed"]
+                
+                if remaining > 0:
+                    self.send_notification(
+                        "KoemojiAuto処理終了",
+                        f"処理完了: {processed}件\n残りキュー: {remaining}件"
+                    )
+                else:
+                    self.send_notification(
+                        "KoemojiAuto処理完了",
+                        f"すべてのファイル({processed}件)の処理が完了しました"
+                    )
             
         except Exception as e:
             logger.error(f"処理中にエラーが発生しました: {e}")

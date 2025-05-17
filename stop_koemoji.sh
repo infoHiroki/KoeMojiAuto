@@ -28,6 +28,7 @@ if kill -0 "$PID" 2>/dev/null; then
     for i in {1..10}; do
         if ! kill -0 "$PID" 2>/dev/null; then
             echo "KoemojiAuto stopped successfully"
+            rm -f "$LOCK_FILE"
             exit 0
         fi
         sleep 1
@@ -40,6 +41,7 @@ if kill -0 "$PID" 2>/dev/null; then
     
     if ! kill -0 "$PID" 2>/dev/null; then
         echo "KoemojiAuto stopped"
+        rm -f "$LOCK_FILE"
     else
         echo "Failed to stop KoemojiAuto"
         exit 1

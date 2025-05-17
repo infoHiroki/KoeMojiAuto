@@ -38,6 +38,7 @@ rem プロセスが終了したか確認
 tasklist /FI "PID eq %PID%" 2>NUL | find /I /N "%PID%" >NUL
 if errorlevel 1 (
     echo KoemojiAuto stopped successfully
+    del /f "%LOCK_FILE%"
     exit /b 0
 )
 
@@ -50,6 +51,7 @@ timeout /t 1 /nobreak >NUL
 tasklist /FI "PID eq %PID%" 2>NUL | find /I /N "%PID%" >NUL
 if errorlevel 1 (
     echo KoemojiAuto stopped
+    del /f "%LOCK_FILE%"
 ) else (
     echo Failed to stop KoemojiAuto
     exit /b 1
