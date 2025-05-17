@@ -1,15 +1,15 @@
 {
-  "input_folder": "/Users/hirokitakamura/Documents/REC-Input",
-  "output_folder": "/Users/hirokitakamura/Documents/REC-Output",
-  "continuous_mode": true,
+  "input_folder": "input",
+  "output_folder": "output",
+  "continuous_mode": false,
   "process_start_time": "19:00",
   "process_end_time": "07:00",
   "scan_interval_minutes": 30,
   "max_concurrent_files": 3,
-  "whisper_model": "large",
+  "whisper_model": "medium",
   "language": "ja",
   "compute_type": "int8",
-  "max_cpu_percent": 95,
+  "max_cpu_percent": 80,
   "notification_enabled": true,
   "daily_summary_time": "07:00"
 }
