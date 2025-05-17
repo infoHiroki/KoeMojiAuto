@@ -5,7 +5,7 @@ import os
 import json
 import psutil
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 def is_running():
     """KoeMojiAutoが実行中か確認"""
@@ -34,6 +34,16 @@ def save_config(config):
     with open('config.json', 'w') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
+@app.route('/favicon.ico')
+def favicon():
+    """ファビコンを提供"""
+    return send_from_directory('static', 'icon.png')
+
+@app.route('/static/<path:path>')
+def send_static(path):
+    """静的ファイルを提供"""
+    return send_from_directory('static', path)
+
 @app.route('/')
 def index():
     """メインページ"""
@@ -44,6 +54,8 @@ def index():
     <title>KoemojiAuto WebUI</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" type="image/png" href="/static/icon.png">
+    <link rel="apple-touch-icon" href="/static/icon.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { 
@@ -68,6 +80,11 @@ def index():
             display: flex;
             align-items: center;
             gap: 12px;
+        }
+        .app-icon {
+            width: 40px;
+            height: 40px;
+            object-fit: contain;
         }
         h3 {
             color: #65676b;
@@ -212,7 +229,10 @@ def index():
 </head>
 <body>
     <div class="container">
-        <h1><i class="fas fa-microphone-alt"></i> KoemojiAuto WebUI</h1>
+        <h1>
+            <img src="/static/icon.png" alt="KoemojiAuto" class="app-icon">
+            KoemojiAuto WebUI
+        </h1>
         
         <div id="status" class="status">
             <i class="fas fa-spinner fa-spin"></i>
@@ -235,10 +255,18 @@ def index():
             <h3><i class="fas fa-cog"></i> 設定</h3>
             <div class="config-item">
                 <label>モード:</label>
-                <select id="mode" onchange="updateConfig()">
+                <select id="mode" onchange="updateMode()">
                     <option value="true">24時間連続</option>
                     <option value="false">時間指定</option>
                 </select>
+            </div>
+            <div id="timeConfig" class="config-item" style="display: none;">
+                <label>処理時間:</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="time" id="start_time" onchange="updateConfig()" style="width: 120px;">
+                    <span>〜</span>
+                    <input type="time" id="end_time" onchange="updateConfig()" style="width: 120px;">
+                </div>
             </div>
             <div class="config-item">
                 <label>Whisperモデル:</label>
@@ -289,7 +317,16 @@ def index():
                     document.getElementById('model').value = data.whisper_model || 'large';
                     document.getElementById('input_folder').value = data.input_folder || '';
                     document.getElementById('output_folder').value = data.output_folder || '';
+                    document.getElementById('start_time').value = data.process_start_time || '19:00';
+                    document.getElementById('end_time').value = data.process_end_time || '07:00';
+                    updateMode();
                 });
+        }
+        
+        function updateMode() {
+            const isContinuous = document.getElementById('mode').value === 'true';
+            document.getElementById('timeConfig').style.display = isContinuous ? 'none' : 'block';
+            updateConfig();
         }
         
         function updateConfig() {
@@ -297,7 +334,9 @@ def index():
                 continuous_mode: document.getElementById('mode').value === 'true',
                 whisper_model: document.getElementById('model').value,
                 input_folder: document.getElementById('input_folder').value,
-                output_folder: document.getElementById('output_folder').value
+                output_folder: document.getElementById('output_folder').value,
+                process_start_time: document.getElementById('start_time').value,
+                process_end_time: document.getElementById('end_time').value
             };
             
             fetch('/config', {
