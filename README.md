@@ -57,6 +57,10 @@ Whisperモデルを使用した高精度な文字起こしを、手動実行で�
    - 処理失敗数
    - 平均処理時間
 
+## コマンド一覧
+
+詳細は[COMMANDS.md](COMMANDS.md)を参照してください。
+
 ## 主な機能
 
 - **高精度文字起こし**: Whisperモデル（tiny/small/medium/large）を選択可能

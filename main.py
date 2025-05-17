@@ -143,57 +143,27 @@ class KoemojiProcessor:
             }
     
     def validate_config(self):
-        """設定値の妥当性をチェック"""
-        
-        # 必須項目のチェック
+        """設定値の妥当性をチェック（簡素化版）"""
+        # 必須項目のみチェック
         required_fields = ["input_folder", "output_folder", "whisper_model", "language"]
-        for field in required_fields:
-            if field not in self.config:
-                raise ValueError(f"必須設定項目が不足しています: {field}")
+        missing = [f for f in required_fields if f not in self.config]
+        if missing:
+            raise ValueError(f"必須設定が不足: {missing}")
         
-        # 時刻形式のチェック
-        time_fields = ["process_start_time", "process_end_time"]
-        for field in time_fields:
-            if field in self.config:
-                time_str = self.config[field]
-                if not self._validate_time_format(time_str):
-                    logger.warning(f"不正な時刻形式: {field}={time_str}")
-                    self.config[field] = "07:00"  # デフォルト値
-        
-        # 数値の妥当性チェック
-        if "scan_interval_minutes" in self.config:
-            val = self.config["scan_interval_minutes"]
-            if not isinstance(val, int) or val < 1 or val > 1440:
-                logger.warning(f"不正なスキャン間隔: {val}")
-                self.config["scan_interval_minutes"] = 30
-        
-        if "max_concurrent_files" in self.config:
-            val = self.config["max_concurrent_files"]
-            if not isinstance(val, int) or val < 1 or val > 10:
-                logger.warning(f"不正な同時処理数: {val}")
-                self.config["max_concurrent_files"] = 3
-        
-        if "max_cpu_percent" in self.config:
-            val = self.config["max_cpu_percent"]
-            if not isinstance(val, (int, float)) or val < 10 or val > 100:
-                logger.warning(f"不正なCPU使用率上限: {val}")
-                self.config["max_cpu_percent"] = 95
-        
-        # Whisperモデルのチェック
-        valid_models = ["tiny", "small", "medium", "large"]
-        if self.config["whisper_model"] not in valid_models:
-            logger.warning(f"不正なWhisperモデル: {self.config['whisper_model']}")
-            self.config["whisper_model"] = "large"
+        # 不正な値はデフォルトに置換
+        defaults = {
+            "process_start_time": "19:00",
+            "process_end_time": "07:00",
+            "scan_interval_minutes": 30,
+            "max_concurrent_files": 3,
+            "max_cpu_percent": 95,
+            "continuous_mode": False,
+            "compute_type": "int8"
+        }
+        for key, default in defaults.items():
+            if key not in self.config:
+                self.config[key] = default
     
-    def _validate_time_format(self, time_str):
-        """時刻形式のチェック"""
-        try:
-            if ":" not in time_str:
-                return False
-            hour, minute = time_str.split(":")
-            return 0 <= int(hour) < 24 and 0 <= int(minute) < 60
-        except:
-            return False
     
     def _ensure_daily_stats(self):
         """今日の統計エントリを確保"""
@@ -521,7 +491,6 @@ class KoemojiProcessor:
     def is_already_running(self):
         """既に実行中かチェック"""
         current_pid = os.getpid()
-        script_path = os.path.abspath(__file__)
         
         for proc in psutil.process_iter(['pid', 'cmdline']):
             try:
@@ -529,12 +498,14 @@ class KoemojiProcessor:
                     continue
                     
                 cmdline = proc.info.get('cmdline')
-                if cmdline and len(cmdline) > 0:
-                    # コマンドラインにmain.pyが含まれているかチェック
-                    cmdline_str = ' '.join(cmdline)
-                    if 'main.py' in cmdline_str or script_path in cmdline_str:
-                        logger.debug(f"既存のプロセスを検出: PID={proc.pid}, CMD={cmdline_str[:100]}")
-                        return True
+                if cmdline and len(cmdline) > 1:
+                    # PythonまたはPython3プロセスであることを確認
+                    if 'python' in cmdline[0].lower() or 'python3' in cmdline[0].lower():
+                        # main.pyを実行しているかチェック
+                        for arg in cmdline[1:]:
+                            if arg.endswith('main.py'):
+                                logger.debug(f"既存のプロセスを検出: PID={proc.pid}")
+                                return True
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
         
@@ -612,7 +583,8 @@ class KoemojiProcessor:
                 
                 # 終了通知
                 remaining = len(self.processing_queue)
-                processed = self.today_stats["processed"]
+                today = datetime.now().strftime("%Y-%m-%d")
+                processed = self.daily_stats.get(today, {}).get("processed", 0)
                 
                 if remaining > 0:
                     self.send_notification(

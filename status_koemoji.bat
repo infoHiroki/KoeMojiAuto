@@ -2,30 +2,21 @@
 echo KoemojiAuto Status
 echo ==================
 
-rem main.pyプロセスを探す
 set "FOUND=0"
-for /f "skip=1 tokens=1,2" %%A in ('wmic process where "CommandLine like '%%python%%main.py%%'" get ProcessId^,CommandLine 2^>NUL') do (
+for /f "skip=1 tokens=1" %%A in ('wmic process where "CommandLine like '%%python%%main.py%%' or CommandLine like '%%python3%%main.py%%'" get ProcessId 2^>NUL') do (
     if "%%A" neq "" (
         echo Status: Running
         echo Process ID: %%A
         set "FOUND=1"
-        goto :DETAILS
+        goto :LOGS
     )
 )
 
-if %FOUND%==0 (
-    echo Status: Not running
-    exit /b 0
-)
+if %FOUND%==0 echo Status: Not running
 
-:DETAILS
-echo.
-echo Process details:
-wmic process where "CommandLine like '%%python%%main.py%%'" get ProcessId,PageFileUsage,WorkingSetSize /format:table
-
-rem 最新のログ
-echo.
-echo Recent log entries:
+:LOGS
 if exist koemoji.log (
+    echo.
+    echo Recent log entries:
     powershell -command "Get-Content koemoji.log -Tail 5"
 )

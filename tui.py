@@ -63,10 +63,13 @@ def is_running():
         for proc in psutil.process_iter(['pid', 'cmdline']):
             try:
                 cmdline = proc.info.get('cmdline')
-                if cmdline and len(cmdline) > 0:
-                    cmdline_str = ' '.join(cmdline)
-                    if 'main.py' in cmdline_str and 'python' in cmdline_str:
-                        return True
+                if cmdline and len(cmdline) > 1:
+                    # Pythonプロセスであることを確認（フルパスも考慮）
+                    if 'python' in cmdline[0].lower():
+                        # main.pyを実行しているかチェック  
+                        for arg in cmdline[1:]:
+                            if arg == 'main.py' or arg.endswith('/main.py'):
+                                return True
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
         return False
@@ -77,13 +80,13 @@ def is_running():
             return 'python' in result.stdout and 'main.py' in result.stdout
         else:  # Unix/macOS
             result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
-            return 'python' in result.stdout and 'main.py' in result.stdout
+            return 'main.py' in result.stdout
 
 def main():
     while True:
         clear()
         config = load_config()
-        running = is_running()
+        running = is_running()  # 毎回ステータスをチェック
         start_time = config.get('process_start_time', '19:00')
         
         # ステータス表示
@@ -142,10 +145,11 @@ def main():
             script = os.path.join(script_dir, 'start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat')
             # バックグラウンドで実行
             try:
-                subprocess.Popen([script])
-                print("\nProcessing started in background.")
-                print("Check progress in log file (koemoji.log).")
-                print("View logs from TUI: [l] View logs")
+                result = subprocess.run([script], capture_output=True, text=True)
+                print(result.stdout)
+                if result.stderr:
+                    print(result.stderr)
+                print("\nCheck progress with [t] Status or [l] View logs")
             except Exception as e:
                 print(f"\nError occurred: {e}")
             input("\nPress Enter to continue...")
@@ -184,36 +188,6 @@ def main():
         elif cmd == 'c':
             config['continuous_mode'] = not config.get('continuous_mode', False)
             save_config(config)
-        elif cmd == 'h':
-            if config.get('continuous_mode', False):
-                print("\nTime settings are not needed in 24-hour mode")
-                input("\nPress Enter to continue...")
-            else:
-                end_time = config.get('process_end_time', '07:00')
-                print(f"\nCurrent: {start_time} → {end_time}")
-                time_range = input("Time range: ")
-                
-                if '-' in time_range:
-                    parts = time_range.split('-')
-                    if len(parts) == 2:
-                        start, end = parts[0].strip(), parts[1].strip()
-                        start_fmt = format_time(start)
-                        end_fmt = format_time(end)
-                        
-                        if start_fmt and end_fmt:
-                            # 開始時刻と終了時刻を更新
-                            config['process_start_time'] = start_fmt
-                            config['process_end_time'] = end_fmt
-                            save_config(config)
-                            print(f"\nTime range changed to {start_fmt} → {end_fmt}")
-                            print("Note: Manual execution only - run KoemojiAuto at the specified time")
-                            input("\nPress Enter to continue...")
-                        else:
-                            print("\nInvalid time format")
-                            input("\nPress Enter to continue...")
-                else:
-                    print("\nPlease enter in start-end format")
-                    input("\nPress Enter to continue...")
         elif cmd == 'i':
             print(f"\nCurrent input folder: {config.get('input_folder', 'Not set')}")
             new_input = input("New input folder (blank to cancel): ").strip()
@@ -235,110 +209,20 @@ def main():
         elif cmd == 'l':
             script_dir = os.path.dirname(os.path.abspath(__file__))
             log_file = os.path.join(script_dir, 'koemoji.log')
-            print(f"\n=== Log Display ({log_file}) ===")
-            print("[1] Last 20 lines  [2] Errors only  [3] Today's logs  [4] All logs")
-            log_choice = input("\nChoice: ").strip()
-            
-            if log_choice == '1':
-                print(f"\n--- Last 20 lines ({log_file}) ---")
-                try:
-                    # Python内部でtail機能を実装
-                    with open(log_file, 'r', encoding='utf-8') as f:
-                        lines = f.readlines()
-                        last_lines = lines[-20:] if len(lines) > 20 else lines
-                        for line in last_lines:
-                            print(line, end='')
-                except FileNotFoundError:
-                    print(f"Log file not found: {log_file}")
-                except Exception as e:
-                    print(f"Error: {e}")
-            elif log_choice == '2':
-                print(f"\n--- Error logs ({log_file}) ---")
-                try:
-                    # Python内部でgrep機能を実装
-                    with open(log_file, 'r', encoding='utf-8') as f:
-                        error_lines = [line for line in f if 'ERROR' in line]
-                        if error_lines:
-                            for line in error_lines:
-                                print(line, end='')
-                        else:
-                            print("No errors found")
-                except FileNotFoundError:
-                    print(f"Log file not found: {log_file}")
-                except Exception as e:
-                    print(f"Error: {e}")
-            elif log_choice == '3':
-                print(f"\n--- Today's logs ({log_file}) ---")
-                today = datetime.now().strftime('%Y-%m-%d')
-                try:
-                    # Python内部でgrep機能を実装
-                    with open(log_file, 'r', encoding='utf-8') as f:
-                        today_lines = [line for line in f if today in line]
-                        if today_lines:
-                            for line in today_lines:
-                                print(line, end='')
-                        else:
-                            print("No logs for today yet")
-                except FileNotFoundError:
-                    print(f"Log file not found: {log_file}")
-                except Exception as e:
-                    print(f"Error: {e}")
-            elif log_choice == '4':
-                print(f"\n--- All logs ({log_file}) ---")
-                try:
-                    with open(log_file, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                        if content:
-                            print(content)
-                        else:
-                            print("Log file is empty")
-                except FileNotFoundError:
-                    print(f"Log file not found: {log_file}")
-                except Exception as e:
-                    print(f"Error: {e}")
-            else:
-                print("Invalid selection")
-            
+            print(f"\n=== Recent Log Entries ===")
+            try:
+                with open(log_file, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                    last_lines = lines[-20:] if len(lines) > 20 else lines
+                    for line in last_lines:
+                        print(line, end='')
+            except FileNotFoundError:
+                print(f"Log file not found: {log_file}")
+            except Exception as e:
+                print(f"Error: {e}")
             input("\nPress Enter to continue...")
 
-def format_time(time_str):
-    """時刻文字列をHH:MM形式に変換"""
-    time_str = time_str.strip()
-    
-    # すでにコロンがある場合
-    if ':' in time_str:
-        if validate_time(time_str):
-            return time_str
-    # 数字のみの場合
-    elif time_str.isdigit():
-        if len(time_str) <= 2:
-            # 1桁または2桁は時間のみ
-            h = int(time_str)
-            if 0 <= h < 24:
-                return f"{h:02d}:00"
-        elif len(time_str) == 3:
-            # 3桁は時間1桁+分2桁
-            h = int(time_str[0])
-            m = int(time_str[1:3])
-            if 0 <= h < 24 and 0 <= m < 60:
-                return f"{h:02d}:{m:02d}"
-        elif len(time_str) == 4:
-            # 4桁は時間2桁+分2桁
-            h = int(time_str[0:2])
-            m = int(time_str[2:4])
-            if 0 <= h < 24 and 0 <= m < 60:
-                return f"{h:02d}:{m:02d}"
-    return None
 
-def validate_time(time_str):
-    """時刻の妥当性を検証"""
-    if ':' in time_str:
-        parts = time_str.split(':')
-        if len(parts) == 2:
-            h, m = parts
-            if h.isdigit() and m.isdigit():
-                return 0 <= int(h) < 24 and 0 <= int(m) < 60
-    return False
 
 if __name__ == "__main__":
     main()

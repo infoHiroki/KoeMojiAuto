@@ -1,2 +1,2 @@
 @echo off
-python tui.py
+python3 tui.py
