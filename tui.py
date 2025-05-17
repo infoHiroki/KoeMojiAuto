@@ -56,18 +56,26 @@ def get_schedule_time():
     except:
         return "19:00"
 
-def is_installed():
-    """KoeMojiAutoがインストールされているか確認"""
-    try:
-        if os.name == 'nt':  # Windows
-            result = subprocess.run(['schtasks', '/query', '/tn', 'KoemojiAutoProcessor'], 
-                                  capture_output=True, text=True)
-            return result.returncode == 0
-        else:  # macOS/Linux
-            if 'darwin' in os.sys.platform:
-                plist_path = os.path.expanduser('~/Library/LaunchAgents/com.koemoji.auto.plist')
-                return os.path.exists(plist_path)
+def is_running():
+    """KoeMojiAutoが実行中か確認"""
+    lock_file = "koemoji.lock"
+    if not os.path.exists(lock_file):
         return False
+    
+    try:
+        with open(lock_file, 'r') as f:
+            pid = f.read().strip()
+        
+        if os.name == 'nt':  # Windows
+            result = subprocess.run(['tasklist', '/FI', f'PID eq {pid}'], 
+                                  capture_output=True, text=True)
+            return pid in result.stdout
+        else:  # Unix/macOS
+            try:
+                os.kill(int(pid), 0)
+                return True
+            except (OSError, ValueError):
+                return False
     except:
         return False
 
@@ -75,8 +83,8 @@ def main():
     while True:
         clear()
         config = load_config()
-        installed = is_installed()
-        start_time = get_schedule_time()
+        running = is_running()
+        start_time = config.get('process_start_time', '19:00')
         
         # ステータス表示
         def format_line(text, width=40):
@@ -95,32 +103,32 @@ def main():
         print("╔═══════════════════════════════════════╗")
         print("║          KoemojiAuto TUI              ║")
         print("╠═══════════════════════════════════════╣")
-        if not installed:
-            print("║                                       ║")
-            print("║    KoeMojiAuto is not installed       ║")
-            print("║                                       ║")
-            print("║    Run install.sh or install.bat      ║")
-            print("║                                       ║")
+        if running:
+            print("║" + format_line(" Status: RUNNING", 39) + "║")
         else:
-            if config.get('continuous_mode'):
-                print("║" + format_line(" Mode  : 24-hour", 39) + "║")
-            else:
-                print("║" + format_line(f" Schedule: {start_time}", 39) + "║")
-                end_time = config.get('process_end_time', '07:00')
-                print("║" + format_line(f" Mode  : Time-limited [until {end_time}]", 39) + "║")
-            print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
-            print("╠═══════════════════════════════════════╣")
-            # 現在のフォルダ設定を表示
-            input_folder = config.get('input_folder', 'Not set')
-            output_folder = config.get('output_folder', 'Not set')
-            print("║" + format_line(f" Input : {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
-            print("║" + format_line(f" Output: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
+            print("║" + format_line(" Status: STOPPED", 39) + "║")
+        
+        print("║───────────────────────────────────────║")
+        if config.get('continuous_mode'):
+            print("║" + format_line(" Mode  : 24-hour continuous", 39) + "║")
+        else:
+            print("║" + format_line(f" Mode  : Time-limited", 39) + "║")
+            print("║" + format_line(f" Start : {start_time}", 39) + "║")
+            end_time = config.get('process_end_time', '07:00')
+            print("║" + format_line(f" End   : {end_time}", 39) + "║")
+        print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
+        print("╠═══════════════════════════════════════╣")
+        # 現在のフォルダ設定を表示
+        input_folder = config.get('input_folder', 'Not set')
+        output_folder = config.get('output_folder', 'Not set')
+        print("║" + format_line(f" Input : {input_folder[:30] + '...' if len(input_folder) > 30 else input_folder}", 39) + "║")
+        print("║" + format_line(f" Output: {output_folder[:30] + '...' if len(output_folder) > 30 else output_folder}", 39) + "║")
         print("╚═══════════════════════════════════════╝")
         print()
         
         # コマンド
         print("Commands:")
-        print("[r] 実行  [m] モデル  [c] モード  [h] 時刻設定")
+        print("[r] 実行  [s] 停止  [t] ステータス  [m] モデル  [c] モード")
         print("[i] 入力フォルダ  [o] 出力フォルダ  [l] ログ表示  [q] 終了")
         print()
         
@@ -141,6 +149,32 @@ def main():
             except Exception as e:
                 print(f"\nError occurred: {e}")
             input("\nPress Enter to continue...")
+        elif cmd == 's':
+            # 停止コマンド
+            print("\nStopping KoemojiAuto...")
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script = os.path.join(script_dir, 'stop_koemoji.sh' if os.name != 'nt' else 'stop_koemoji.bat')
+            try:
+                result = subprocess.run([script], capture_output=True, text=True)
+                print(result.stdout)
+                if result.stderr:
+                    print(result.stderr)
+            except Exception as e:
+                print(f"\nError occurred: {e}")
+            input("\nPress Enter to continue...")
+        elif cmd == 't':
+            # ステータスコマンド  
+            print("\nChecking KoemojiAuto status...")
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            script = os.path.join(script_dir, 'status_koemoji.sh' if os.name != 'nt' else 'status_koemoji.bat')
+            try:
+                result = subprocess.run([script], capture_output=True, text=True)
+                print(result.stdout)
+                if result.stderr:
+                    print(result.stderr)
+            except Exception as e:
+                print(f"\nError occurred: {e}")
+            input("\nPress Enter to continue...")
         elif cmd == 'm':
             models = ['tiny', 'small', 'medium', 'large']
             current = config.get('whisper_model', 'large')
@@ -151,11 +185,7 @@ def main():
             config['continuous_mode'] = not config.get('continuous_mode', False)
             save_config(config)
         elif cmd == 'h':
-            if not installed:
-                print("\nKoeMojiAuto is not installed.")
-                print("Please run install.sh or install.bat first.")
-                input("\nPress Enter to continue...")
-            elif config.get('continuous_mode', False):
+            if config.get('continuous_mode', False):
                 print("\nTime settings are not needed in 24-hour mode")
                 input("\nPress Enter to continue...")
             else:
@@ -175,22 +205,8 @@ def main():
                             config['process_start_time'] = start_fmt
                             config['process_end_time'] = end_fmt
                             save_config(config)
-                            
-                            # OSごとの処理
-                            if os.name == 'nt':
-                                # Windowsの場合はschtasksで更新
-                                subprocess.run(['schtasks', '/change', '/tn', 'KoemojiAutoProcessor', '/st', start_fmt])
-                                print(f"\nTime range changed to {start_fmt} → {end_fmt}")
-                            else:
-                                # macOS/Linuxの場合はinstall.shを実行
-                                print(f"\nChanging time range to {start_fmt} → {end_fmt}...")
-                                result = subprocess.run(['./install.sh', start_fmt], 
-                                                      capture_output=True, text=True)
-                                if result.returncode == 0:
-                                    print("Settings updated")
-                                else:
-                                    print("Error occurred:")
-                                    print(result.stderr)
+                            print(f"\nTime range changed to {start_fmt} → {end_fmt}")
+                            print("Note: Manual execution only - run KoemojiAuto at the specified time")
                             input("\nPress Enter to continue...")
                         else:
                             print("\nInvalid time format")
