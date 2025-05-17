@@ -15,26 +15,24 @@ if %errorlevel% neq 0 (
 rem Try to enable the task first
 schtasks /change /tn "KoemojiAutoProcessor" /enable >nul 2>&1
 if %errorlevel% equ 0 (
-    rem Successfully enabled - was previously disabled
-    echo Status changed: Disabled → Enabled
+    rem If successful, it was disabled before
+    echo Previous status: Disabled
+    echo Current status: Enabled
     echo.
     echo Auto-execution resumed.
-    echo Will run daily at 19:00.
+    echo Will run daily at configured time.
 ) else (
-    rem Failed to enable - already enabled, so disable it
+    rem If failed, it's already enabled, so disable it
+    echo Previous status: Enabled
     schtasks /change /tn "KoemojiAutoProcessor" /disable >nul 2>&1
-    if %errorlevel% equ 0 (
-        echo Status changed: Enabled → Disabled
-        echo.
-        echo Auto-execution paused.
-        echo To run manually, use start_koemoji.bat.
-    ) else (
-        echo Error: Failed to change task status.
-    )
+    echo Current status: Disabled
+    echo.
+    echo Auto-execution paused.
+    echo To run manually, use start_koemoji.bat.
 )
 
 echo.
-echo Current status:
-schtasks /query /tn "KoemojiAutoProcessor" /fo LIST | findstr /i "Status:"
+echo Task details:
+schtasks /query /tn "KoemojiAutoProcessor" /fo LIST | findstr /i "TaskName Next Last Status"
 echo.
 pause
