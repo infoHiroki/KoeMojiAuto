@@ -6,61 +6,61 @@ echo    KoeMojiAuto Installer
 echo =====================================
 echo.
 
-rem 管理者権限チェック
+rem Check admin privileges
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [!] 管理者権限が必要です
-    echo 右クリックして「管理者として実行」してください
+    echo [!] Administrator privileges required
+    echo Right-click and select "Run as administrator"
     pause
     exit /b 1
 )
 
-rem Python確認
-echo [1/5] Python環境を確認しています...
+rem Python check
+echo [1/5] Checking Python environment...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [X] Pythonがインストールされていません
-    echo     https://www.python.org/ からインストールしてください
+    echo [X] Python is not installed
+    echo     Please install from https://www.python.org/
     pause
     exit /b 1
 )
 
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYVER=%%i
-echo [OK] Python %PYVER% を検出しました
+echo [OK] Python %PYVER% detected
 
-rem FFmpeg確認
-echo [2/5] FFmpegを確認しています...
+rem FFmpeg check
+echo [2/5] Checking FFmpeg...
 ffmpeg -version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [!] FFmpegがインストールされていません
-    echo     音声・動画処理にはFFmpegが必要です
-    echo     https://ffmpeg.org/download.html からインストールしてください
-    set /p CONTINUE="続行しますか？ (y/n): "
+    echo [!] FFmpeg is not installed
+    echo     FFmpeg is required for audio/video processing
+    echo     Please install from https://ffmpeg.org/download.html
+    set /p CONTINUE="Continue anyway? (y/n): "
     if not "!CONTINUE!"=="y" exit /b 1
 ) else (
-    echo [OK] FFmpegが検出されました
+    echo [OK] FFmpeg detected
 )
 
-rem 依存関係インストール
-echo [3/5] 依存関係をインストールしています...
+rem Install dependencies
+echo [3/5] Installing dependencies...
 cd /d "%~dp0"
 pip install -r requirements.txt
 if %errorlevel% neq 0 (
-    echo [X] 依存関係のインストールに失敗しました
+    echo [X] Failed to install dependencies
     pause
     exit /b 1
 )
-echo [OK] 依存関係をインストールしました
+echo [OK] Dependencies installed
 
-rem フォルダ作成
-echo [4/5] 必要なフォルダを作成しています...
+rem Create folders
+echo [4/5] Creating required folders...
 if not exist "input" mkdir "input"
 if not exist "output" mkdir "output" 
 if not exist "reports" mkdir "reports"
-echo [OK] フォルダを作成しました
+echo [OK] Folders created
 
-rem タスクスケジューラー設定
-echo [5/5] 自動実行を設定しています...
+rem Task Scheduler setup
+echo [5/5] Setting up auto-start...
 set CURRENT_DIR=%~dp0
 
 schtasks /delete /tn "KoeMojiAutoProcessor" /f >nul 2>&1
@@ -68,30 +68,30 @@ schtasks /delete /tn "KoeMojiAutoStartup" /f >nul 2>&1
 
 schtasks /create /tn "KoeMojiAutoProcessor" /tr "%CURRENT_DIR%start_koemoji.bat" /sc daily /st 19:00 /f
 if %errorlevel% neq 0 (
-    echo [X] 定時実行タスクの作成に失敗しました
+    echo [X] Failed to create scheduled task
     pause
     exit /b 1
 )
 
 schtasks /create /tn "KoeMojiAutoStartup" /tr "%CURRENT_DIR%check_and_start.bat" /sc onstart /ru "%USERNAME%" /f
 if %errorlevel% neq 0 (
-    echo [X] 起動時タスクの作成に失敗しました
+    echo [X] Failed to create startup task
     pause
     exit /b 1
 )
-echo [OK] タスクスケジューラーを設定しました
+echo [OK] Task Scheduler configured
 
-rem 設定確認
+rem Installation complete
 echo.
-echo インストール完了！
+echo Installation complete!
 echo.
-echo * 実行: start_koemoji.bat
-echo * 設定: tui.bat
-echo * 自動実行: 毎日19時
+echo * Run: start_koemoji.bat
+echo * Configure: tui.bat  
+echo * Auto-run: Daily at 19:00
 echo.
 
-rem TUI起動の確認
-set /p LAUNCH="設定画面を開きますか？ (y/n): "
+rem Launch TUI confirmation
+set /p LAUNCH="Open configuration screen? (y/n): "
 if "!LAUNCH!"=="y" (
     start tui.bat
 )
