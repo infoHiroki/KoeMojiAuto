@@ -69,9 +69,9 @@ class KoemojiProcessor:
         self._whisper_model = None
         self._model_config = None
         
-        # 日付ごとの処理統計
-        self.daily_stats = {}
-        self._ensure_daily_stats()  # 今日の統計を初期化
+        # 日付ごとの処理統計（ログから取得するためメモリ上の管理は不要）
+        # self.daily_stats = {}
+        # self._ensure_daily_stats()  # 今日の統計を初期化
     
     def load_config(self):
         """設定ファイルを読み込む"""
@@ -171,24 +171,25 @@ class KoemojiProcessor:
                 self.config[key] = default
     
     
-    def _ensure_daily_stats(self):
-        """今日の統計エントリを確保"""
-        today = datetime.now().strftime("%Y-%m-%d")
-        if today not in self.daily_stats:
-            self.daily_stats[today] = {
-                "queued": 0,
-                "processed": 0,
-                "failed": 0,
-                "total_duration": 0,
-                "date": today
-            }
+    # 以下のメソッドはログベースの集計に移行したため不要
+    # def _ensure_daily_stats(self):
+    #     """今日の統計エントリを確保"""
+    #     today = datetime.now().strftime("%Y-%m-%d")
+    #     if today not in self.daily_stats:
+    #         self.daily_stats[today] = {
+    #             "queued": 0,
+    #             "processed": 0,
+    #             "failed": 0,
+    #             "total_duration": 0,
+    #             "date": today
+    #         }
     
-    def record_stat(self, stat_type, value=1):
-        """統計を記録（日付ごと）"""
-        self._ensure_daily_stats()
-        today = datetime.now().strftime("%Y-%m-%d")
-        if stat_type in self.daily_stats[today]:
-            self.daily_stats[today][stat_type] += value
+    # def record_stat(self, stat_type, value=1):
+    #     """統計を記録（日付ごと）"""
+    #     self._ensure_daily_stats()
+    #     today = datetime.now().strftime("%Y-%m-%d")
+    #     if stat_type in self.daily_stats[today]:
+    #         self.daily_stats[today][stat_type] += value
     
     def load_processed_history(self):
         """処理済みファイルの履歴を読み込む"""
@@ -270,8 +271,8 @@ class KoemojiProcessor:
                 self.processing_queue.append(file_info)
                 logger.info(f"➕ キューに追加: {file_name}")
                 
-                # 統計を記録
-                self.record_stat("queued")
+                # 統計を記録（ログから取得するため不要）
+                # self.record_stat("queued")
             
             logger.info(f"📋 現在のキュー: {len(self.processing_queue)}件")
             
@@ -361,9 +362,9 @@ class KoemojiProcessor:
                 self.processed_files.add(file_id)
                 self.save_processed_history()
                 
-                # 統計を記録
-                self.record_stat("processed")
-                self.record_stat("total_duration", processing_time)
+                # 統計を記録（ログから取得するため不要）
+                # self.record_stat("processed")
+                # self.record_stat("total_duration", processing_time)
                 
                 # 通知
                 self.send_notification(
@@ -372,8 +373,8 @@ class KoemojiProcessor:
                 )
             else:
                 logger.error(f"❌ 文字起こし失敗: {file_name}")
-                # 統計を記録
-                self.record_stat("failed")
+                # 統計を記録（ログから取得するため不要）
+                # self.record_stat("failed")
                 
                 # エラー通知
                 self.send_notification(
@@ -383,8 +384,8 @@ class KoemojiProcessor:
         
         except Exception as e:
             logger.error(f"❌ ファイル処理中にエラーが発生しました: {file_path} - {e}")
-            # 統計を記録
-            self.record_stat("failed")
+            # 統計を記録（ログから取得するため不要）
+            # self.record_stat("failed")
             
             # エラー通知
             self.send_notification(
@@ -439,17 +440,15 @@ class KoemojiProcessor:
             target_date = date_obj.strftime("%Y-%m-%d")
             logger.info(f"📊 {target_date}の日次サマリーを生成しています")
             
-            # 今日の統計を取得（存在しない場合はデフォルト値）
-            stats = self.daily_stats.get(target_date, {
-                "queued": 0,
-                "processed": 0,
-                "failed": 0,
-                "total_duration": 0,
-                "date": target_date
-            })
+            # ログファイルから統計を集計
+            stats = self._collect_stats_from_log(target_date)
             
-            # 平均処理時間を計算
-            avg_duration = stats["total_duration"] / stats["processed"] if stats["processed"] > 0 else 0
+            if stats is None:
+                logger.error("ログファイルを読み込めませんでした")
+                return
+            
+            # 平均処理時間を計算（現時点では0）
+            avg_duration = 0  # 時間集計は今回は実装しない
             
             # サマリーメッセージを作成
             summary = (
@@ -458,8 +457,6 @@ class KoemojiProcessor:
                 f"キュー追加: {stats['queued']}件\n"
                 f"処理完了: {stats['processed']}件\n"
                 f"処理失敗: {stats['failed']}件\n"
-                f"総処理時間: {stats['total_duration']:.2f}秒\n"
-                f"平均処理時間: {avg_duration:.2f}秒/ファイル\n"
                 f"残りキュー: {len(self.processing_queue)}件\n"
                 f"------------------------\n"
             )
@@ -489,6 +486,41 @@ class KoemojiProcessor:
     def generate_daily_summary(self):
         """今日の処理サマリーを生成（互換性のため残す）"""
         self.generate_daily_summary_for_date(datetime.now().date())
+    
+    def _collect_stats_from_log(self, target_date):
+        """ログファイルから指定日の統計を集計"""
+        try:
+            stats = {
+                "queued": 0,
+                "processed": 0,
+                "failed": 0,
+                "date": target_date
+            }
+            
+            # ログファイルを開いて読み込む
+            log_path = "koemoji.log"
+            if not os.path.exists(log_path):
+                return stats  # ファイルがなければ空の統計を返す
+            
+            with open(log_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    # 日付が含まれているか確認
+                    if target_date not in line:
+                        continue
+                    
+                    # 各種イベントをカウント
+                    if "➕ キューに追加" in line:
+                        stats["queued"] += 1
+                    elif "✅ 文字起こし完了" in line:
+                        stats["processed"] += 1
+                    elif "❌ 文字起こし失敗" in line:
+                        stats["failed"] += 1
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"ログファイルの読み込み中にエラーが発生しました: {e}")
+            return None
     
     def send_notification(self, title, message):
         """通知をログに記録する"""
@@ -559,8 +591,8 @@ class KoemojiProcessor:
             while continuous_mode or (end_time and datetime.now().time() < end_time):
                 current_time = time.time()
                 
-                # 日付が変わったら新しい統計エントリを作成
-                self._ensure_daily_stats()
+                # 日付が変わったら新しい統計エントリを作成（ログベースなので不要）
+                # self._ensure_daily_stats()
                 
                 # 定期的にファイルをスキャン
                 if current_time - last_scan_time >= scan_interval:

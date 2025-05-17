@@ -4,6 +4,8 @@ import subprocess
 import os
 import json
 import psutil
+from datetime import datetime
+import calendar
 
 app = Flask(__name__, static_folder='static')
 
@@ -51,7 +53,7 @@ def index():
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KoemojiAuto WebUI</title>
+    <title>KoemojiAuto</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/png" href="/static/icon.png">
@@ -225,6 +227,87 @@ def index():
             outline: none;
             border-color: #3498db;
         }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            border-bottom: 2px solid #e4e5e7;
+        }
+        .tab {
+            background: none;
+            border: none;
+            padding: 12px 20px;
+            color: #65676b;
+            font-size: 16px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+        .tab:hover {
+            color: #1877f2;
+            background-color: #f0f2f5;
+        }
+        .tab.active {
+            color: #1877f2;
+            border-bottom-color: #1877f2;
+            font-weight: 600;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .summary-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .summary-list {
+            margin-top: 20px;
+        }
+        .summary-item {
+            background-color: #f8f9fc;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .summary-item:hover {
+            background-color: #f0f2f5;
+            transform: translateY(-1px);
+        }
+        .summary-date {
+            font-weight: 600;
+            font-size: 18px;
+            color: #1c1e21;
+            margin-bottom: 12px;
+        }
+        .summary-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stat-count {
+            font-weight: 500;
+            font-size: 16px;
+        }
+        .stat-label {
+            color: #65676b;
+            font-size: 14px;
+        }
+        .no-data {
+            text-align: center;
+            color: #adb5bd;
+            padding: 40px;
+            font-size: 16px;
+        }
     </style>
 </head>
 <body>
@@ -251,8 +334,18 @@ def index():
             </button>
         </div>
         
-        <div class="config">
-            <h3><i class="fas fa-cog"></i> 設定</h3>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('config')">
+                <i class="fas fa-cog"></i> 設定
+            </button>
+            <button class="tab" onclick="switchTab('summary')">
+                <i class="fas fa-list"></i> サマリー
+            </button>
+        </div>
+        
+        <div id="configTab" class="tab-content active">
+            <div class="config">
+                <h3><i class="fas fa-cog"></i> 設定</h3>
             <div class="config-item">
                 <label>モード:</label>
                 <select id="mode" onchange="updateMode()">
@@ -285,11 +378,24 @@ def index():
                 <label>出力フォルダ:</label>
                 <input type="text" id="output_folder" onblur="updateConfig()" placeholder="./output">
             </div>
+            </div>
+            
+            <div>
+                <h3><i class="fas fa-terminal"></i> ログ</h3>
+                <div id="log" class="log">Loading logs...</div>
+            </div>
         </div>
         
-        <div>
-            <h3><i class="fas fa-terminal"></i> ログ</h3>
-            <div id="log" class="log">Loading logs...</div>
+        <div id="summaryTab" class="tab-content">
+            <div class="summary-container">
+                <h3><i class="fas fa-list"></i> 処理サマリー一覧</h3>
+                <div class="summary-list" id="summaryList">
+                    <div style="text-align: center; padding: 40px;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
+                        <p>読み込み中...</p>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -409,6 +515,176 @@ def index():
             }, 1000);
         }
         
+        // タブ切り替え
+        function switchTab(tabName) {
+            // タブボタンの状態を更新
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // タブコンテンツの表示切り替え
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // サマリータブの場合は一覧を読み込み
+            if (tabName === 'summary') {
+                loadSummaryList();
+            }
+        }
+        
+        // カレンダー関連
+        let currentDate = new Date();
+        let selectedDate = null;
+        let summaryCache = {};
+        
+        function initCalendar() {
+            renderCalendar();
+            loadMonthSummaries();
+        }
+        
+        function renderCalendar() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const prevLastDay = new Date(year, month, 0);
+            
+            // 月表示を更新
+            const monthNames = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+            document.getElementById('monthYear').textContent = `${year}年 ${monthNames[month]}`;
+            
+            // カレンダーをクリア
+            const calendar = document.getElementById('calendar');
+            calendar.innerHTML = '';
+            
+            // 曜日ヘッダー
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            weekdays.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.style.textAlign = 'center';
+                dayHeader.style.fontWeight = 'bold';
+                dayHeader.style.color = '#65676b';
+                dayHeader.textContent = day;
+                calendar.appendChild(dayHeader);
+            });
+            
+            // 前月の日を追加
+            const firstDayOfWeek = firstDay.getDay();
+            for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+                const day = prevLastDay.getDate() - i;
+                createDayElement(new Date(year, month - 1, day), true);
+            }
+            
+            // 今月の日を追加
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                createDayElement(new Date(year, month, day), false);
+            }
+            
+            // 翌月の日を追加
+            const remainingDays = 42 - (firstDayOfWeek + lastDay.getDate());
+            for (let day = 1; day <= remainingDays; day++) {
+                createDayElement(new Date(year, month + 1, day), true);
+            }
+        }
+        
+        function createDayElement(date, inactive) {
+            const dayDiv = document.createElement('div');
+            dayDiv.className = 'calendar-day' + (inactive ? ' inactive' : '');
+            dayDiv.dataset.date = date.toISOString().split('T')[0];
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'calendar-day-number';
+            dayNumber.textContent = date.getDate();
+            dayDiv.appendChild(dayNumber);
+            
+            const dayStats = document.createElement('div');
+            dayStats.className = 'calendar-day-stats';
+            dayStats.innerHTML = '<span style="color: #adb5bd;">-</span>';
+            dayDiv.appendChild(dayStats);
+            
+            dayDiv.addEventListener('click', () => selectDate(date));
+            
+            document.getElementById('calendar').appendChild(dayDiv);
+        }
+        
+        function changeMonth(direction) {
+            currentDate.setMonth(currentDate.getMonth() + direction);
+            renderCalendar();
+            loadMonthSummaries();
+        }
+        
+        function selectDate(date) {
+            selectedDate = date;
+            const dateStr = date.toISOString().split('T')[0];
+            
+            // アクティブなクラスを更新
+            document.querySelectorAll('.calendar-day').forEach(day => day.classList.remove('active'));
+            const selectedDiv = document.querySelector(`[data-date="${dateStr}"]`);
+            if (selectedDiv) selectedDiv.classList.add('active');
+            
+            // 詳細を表示
+            showDayDetail(dateStr);
+        }
+        
+        function loadMonthSummaries() {
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            
+            fetch(`/summaries/${year}/${month}`)
+                .then(response => response.json())
+                .then(data => {
+                    summaryCache = data;
+                    updateCalendarStats();
+                })
+                .catch(error => console.error('Failed to load summaries:', error));
+        }
+        
+        function updateCalendarStats() {
+            document.querySelectorAll('.calendar-day').forEach(dayDiv => {
+                const date = dayDiv.dataset.date;
+                const stats = summaryCache[date];
+                const statsDiv = dayDiv.querySelector('.calendar-day-stats');
+                
+                if (stats) {
+                    statsDiv.innerHTML = `
+                        <div style="color: #42b883;">✓ ${stats.processed}</div>
+                        ${stats.failed > 0 ? `<div style="color: #e74c3c;">✗ ${stats.failed}</div>` : ''}
+                    `;
+                } else {
+                    statsDiv.innerHTML = '<span style="color: #adb5bd;">-</span>';
+                }
+            });
+        }
+        
+        function showDayDetail(dateStr) {
+            const stats = summaryCache[dateStr];
+            const detailDiv = document.getElementById('dayDetail');
+            
+            if (stats) {
+                detailDiv.innerHTML = `
+                    <h4>${dateStr} の処理結果</h4>
+                    <div class="stat-line">
+                        <span>➕ キュー追加</span>
+                        <span>${stats.queued}件</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>✅ 処理完了</span>
+                        <span>${stats.processed}件</span>
+                    </div>
+                    <div class="stat-line">
+                        <span>❌ 処理失敗</span>
+                        <span>${stats.failed}件</span>
+                    </div>
+                `;
+                detailDiv.classList.add('active');
+            } else {
+                detailDiv.innerHTML = `
+                    <h4>${dateStr}</h4>
+                    <p style="text-align: center; color: #adb5bd;">この日の処理はありません</p>
+                `;
+                detailDiv.classList.add('active');
+            }
+        }
+        
         // 初期化
         updateStatus();
         loadConfig();
@@ -476,6 +752,56 @@ def log():
             return ''.join(lines[-30:])
     except:
         return "ログファイルが見つかりません"
+
+@app.route('/summaries/<int:year>/<int:month>')
+def get_month_summaries(year, month):
+    """指定月のサマリーを取得"""
+    summaries = {}
+    
+    # 月の日数を取得
+    num_days = calendar.monthrange(year, month)[1]
+    
+    # 各日のログから統計を集計
+    for day in range(1, num_days + 1):
+        date_str = f"{year:04d}-{month:02d}-{day:02d}"
+        stats = collect_stats_from_log(date_str)
+        if stats and (stats['queued'] > 0 or stats['processed'] > 0 or stats['failed'] > 0):
+            summaries[date_str] = stats
+    
+    return jsonify(summaries)
+
+def collect_stats_from_log(target_date):
+    """ログファイルから指定日の統計を集計"""
+    try:
+        stats = {
+            "queued": 0,
+            "processed": 0,
+            "failed": 0
+        }
+        
+        log_path = "koemoji.log"
+        if not os.path.exists(log_path):
+            return stats
+        
+        with open(log_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                # 日付が含まれているか確認
+                if target_date not in line:
+                    continue
+                
+                # 各種イベントをカウント
+                if "➕ キューに追加" in line:
+                    stats["queued"] += 1
+                elif "✅ 文字起こし完了" in line:
+                    stats["processed"] += 1
+                elif "❌ 文字起こし失敗" in line:
+                    stats["failed"] += 1
+        
+        return stats
+        
+    except Exception as e:
+        print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
+        return None
 
 
 if __name__ == '__main__':
