@@ -1,27 +1,26 @@
 @echo off
-chcp 65001 > nul
-echo KoemojiAuto処理のスケジュールタスクを設定しています...
+echo Setting up KoemojiAuto scheduled tasks...
 
-rem 現在のディレクトリを取得
+rem Get current directory
 set CURRENT_DIR=%~dp0
 
-rem 既存のタスクを削除（エラーは無視）
+rem Delete existing tasks (ignore errors)
 schtasks /delete /tn "KoemojiAutoProcessor" /f 2>nul
 schtasks /delete /tn "KoemojiAutoStartup" /f 2>nul
 
-rem 毎日19時に実行するタスクを作成
+rem Create task to run daily at 19:00
 schtasks /create /tn "KoemojiAutoProcessor" /tr "%CURRENT_DIR%start_koemoji.bat" /sc daily /st 19:00 /f
 
-rem PC起動時にチェックして起動するタスクを作成
+rem Create task to check and start on PC startup
 schtasks /create /tn "KoemojiAutoStartup" /tr "%CURRENT_DIR%check_and_start.bat" /sc onstart /ru "%USERNAME%" /f
 
 echo.
-echo 完了！
-echo - 24時間モード: PC起動時に自動的に開始されます
-echo - 時間指定モード: 毎日19時に自動的に開始されます
+echo Complete!
+echo - 24-hour mode: Will automatically start on PC startup
+echo - Scheduled mode: Will automatically start at 19:00 daily
 echo.
-echo タスクスケジューラで以下のタスクを確認してください:
-echo - KoemojiAutoProcessor (定時実行)
-echo - KoemojiAutoStartup (起動時実行)
+echo Please check the following tasks in Task Scheduler:
+echo - KoemojiAutoProcessor (scheduled execution)
+echo - KoemojiAutoStartup (startup execution)
 echo.
 pause

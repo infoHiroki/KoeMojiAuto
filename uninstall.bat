@@ -1,29 +1,28 @@
 @echo off
-chcp 65001 > nul
-echo KoemojiAutoのアンインストールを開始します...
+echo Starting KoemojiAuto uninstall...
 echo.
 
-rem タスクスケジューラから削除
-echo タスクスケジューラから削除しています...
+rem Remove from Task Scheduler
+echo Removing from Task Scheduler...
 
-rem 定時実行タスクを削除
+rem Delete scheduled task
 schtasks /delete /tn "KoemojiAutoProcessor" /f >nul 2>&1
 if %errorlevel%==0 (
-    echo 定時実行タスクを削除しました。
+    echo Scheduled task removed.
 ) else (
-    echo 定時実行タスクが見つかりませんでした。
+    echo Scheduled task not found.
 )
 
-rem 起動時実行タスクを削除
+rem Delete startup task
 schtasks /delete /tn "KoemojiAutoStartup" /f >nul 2>&1
 if %errorlevel%==0 (
-    echo 起動時実行タスクを削除しました。
+    echo Startup task removed.
 ) else (
-    echo 起動時実行タスクが見つかりませんでした。
+    echo Startup task not found.
 )
 
 echo.
-echo アンインストールが完了しました。
-echo このフォルダ（%~dp0）を手動で削除してください。
+echo Uninstall complete.
+echo Please manually delete this folder (%~dp0).
 echo.
 pause

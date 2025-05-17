@@ -1,5 +1,4 @@
 @echo off
-chcp 65001 > nul
-echo KoemojiAuto処理を開始しています...
+echo Starting KoemojiAuto processing...
 python "%~dp0main.py"
 pause

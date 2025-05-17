@@ -1,21 +1,20 @@
 @echo off
-chcp 65001 >nul
 cd /d "%~dp0"
 
-REM KoemojiAuto起動時チェックスクリプト（Windows版）
-REM 24時間モードの場合のみ起動する
+REM KoemojiAuto startup check script (Windows version)
+REM Only start in 24-hour mode
 
 if exist "config.json" (
-    REM Pythonでconfig.jsonを読み込んでcontinuous_modeをチェック
+    REM Read config.json with Python to check continuous_mode
     for /f %%i in ('python -c "import json; print(str(json.load(open('config.json')).get('continuous_mode', False)).lower())"') do set CONTINUOUS_MODE=%%i
     
     if "%CONTINUOUS_MODE%"=="true" (
-        echo 24時間モードが有効です。KoemojiAutoを起動します。
+        echo 24-hour mode is enabled. Starting KoemojiAuto.
         call start_koemoji.bat
     ) else (
-        echo 時間指定モードです。指定時刻まで待機します。
+        echo Scheduled mode. Waiting for scheduled time.
     )
 ) else (
-    echo 設定ファイルが見つかりません: config.json
+    echo Configuration file not found: config.json
     exit /b 1
 )
