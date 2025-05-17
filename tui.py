@@ -149,29 +149,38 @@ def main():
         if cmd == 'q':
             break
         elif cmd == 'r':
-            print("\n処理を開始します...")
+            print("\nStarting processing...")
             script_dir = os.path.dirname(os.path.abspath(__file__))
             script = os.path.join(script_dir, 'start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat')
             # バックグラウンドで実行
             try:
                 subprocess.Popen([script])
-                print("\nバックグラウンドで処理が開始されました。")
-                print("進行状況はログファイル (koemoji.log) で確認できます。")
-                print("TUIからログを確認: [l] ログ表示")
+                print("\nProcessing started in background.")
+                print("Check progress in log file (koemoji.log).")
+                print("View logs from TUI: [l] View logs")
             except Exception as e:
-                print(f"\nエラーが発生しました: {e}")
-            input("\nEnterで続行...")
+                print(f"\nError occurred: {e}")
+            input("\nPress Enter to continue...")
         elif cmd == 't':
-            if auto_status == "未設定":
-                print("\nKoeMojiAutoがインストールされていません。")
-                print("先にinstall.shまたはinstall.batを実行してください。")
+            if auto_status == "Not configured" or auto_status == "未設定":
+                print("\nKoeMojiAuto is not installed.")
+                print("Please run install.sh or install.bat first.")
             else:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 script = os.path.join(script_dir, 'toggle.sh' if os.name != 'nt' else 'toggle.bat')
-                result = subprocess.run([script], check=False, capture_output=True, text=True)
-                if result.returncode != 0:
-                    print("\n自動実行の切り替えに失敗しました。")
-            input("\nEnterで続行...")
+                print("\nToggling auto-execution status...")
+                # Windowsでは .bat ファイルを cmd.exe で実行
+                if os.name == 'nt':
+                    result = subprocess.run([script], capture_output=True, text=True, shell=True)
+                else:
+                    result = subprocess.run([script], capture_output=True, text=True)
+                if result.returncode == 0:
+                    print(result.stdout)
+                    # 正常終了後は続行せずにメイン画面に戻る
+                    input("\nPress Enter to continue...")
+                else:
+                    print("\nFailed to toggle auto-execution.")
+                    input("\nPress Enter to continue...")
         elif cmd == 'm':
             models = ['tiny', 'small', 'medium', 'large']
             current = config.get('whisper_model', 'large')
@@ -182,17 +191,17 @@ def main():
             config['continuous_mode'] = not config.get('continuous_mode', False)
             save_config(config)
         elif cmd == 'h':
-            if auto_status == "未設定":
-                print("\nKoeMojiAutoがインストールされていません。")
-                print("先にinstall.shまたはinstall.batを実行してください。")
-                input("\nEnterで続行...")
+            if auto_status == "Not configured" or auto_status == "未設定":
+                print("\nKoeMojiAuto is not installed.")
+                print("Please run install.sh or install.bat first.")
+                input("\nPress Enter to continue...")
             elif config.get('continuous_mode', False):
-                print("\n24時間モードでは時刻設定は不要です")
-                input("\nEnterで続行...")
+                print("\nTime settings are not needed in 24-hour mode")
+                input("\nPress Enter to continue...")
             else:
                 end_time = config.get('process_end_time', '07:00')
-                print(f"\n現在: {start_time} → {end_time}")
-                time_range = input("時間帯: ")
+                print(f"\nCurrent: {start_time} → {end_time}")
+                time_range = input("Time range: ")
                 
                 if '-' in time_range:
                     parts = time_range.split('-')
@@ -211,51 +220,51 @@ def main():
                             if os.name == 'nt':
                                 # Windowsの場合はschtasksで更新
                                 subprocess.run(['schtasks', '/change', '/tn', 'KoemojiAutoProcessor', '/st', start_fmt])
-                                print(f"\n時間帯を {start_fmt} → {end_fmt} に変更しました")
+                                print(f"\nTime range changed to {start_fmt} → {end_fmt}")
                             else:
                                 # macOS/Linuxの場合はinstall.shを実行
-                                print(f"\n時間帯を {start_fmt} → {end_fmt} に変更しています...")
+                                print(f"\nChanging time range to {start_fmt} → {end_fmt}...")
                                 result = subprocess.run(['./install.sh', start_fmt], 
                                                       capture_output=True, text=True)
                                 if result.returncode == 0:
-                                    print("設定が更新されました")
+                                    print("Settings updated")
                                 else:
-                                    print("エラーが発生しました:")
+                                    print("Error occurred:")
                                     print(result.stderr)
-                            input("\nEnterで続行...")
+                            input("\nPress Enter to continue...")
                         else:
-                            print("\n無効な時刻形式です")
-                            input("\nEnterで続行...")
+                            print("\nInvalid time format")
+                            input("\nPress Enter to continue...")
                 else:
-                    print("\n開始-終了 の形式で入力してください")
-                    input("\nEnterで続行...")
+                    print("\nPlease enter in start-end format")
+                    input("\nPress Enter to continue...")
         elif cmd == 'i':
-            print(f"\n現在の入力フォルダ: {config.get('input_folder', '未設定')}")
-            new_input = input("新しい入力フォルダ (空白でキャンセル): ").strip()
+            print(f"\nCurrent input folder: {config.get('input_folder', 'Not set')}")
+            new_input = input("New input folder (blank to cancel): ").strip()
             if new_input:
                 new_input = os.path.expanduser(new_input)
                 config['input_folder'] = new_input
                 save_config(config)
-                print(f"入力フォルダを変更しました: {new_input}")
-            input("\nEnterで続行...")
+                print(f"Input folder changed to: {new_input}")
+            input("\nPress Enter to continue...")
         elif cmd == 'o':
-            print(f"\n現在の出力フォルダ: {config.get('output_folder', '未設定')}")
-            new_output = input("新しい出力フォルダ (空白でキャンセル): ").strip()
+            print(f"\nCurrent output folder: {config.get('output_folder', 'Not set')}")
+            new_output = input("New output folder (blank to cancel): ").strip()
             if new_output:
                 new_output = os.path.expanduser(new_output)
                 config['output_folder'] = new_output
                 save_config(config)
-                print(f"出力フォルダを変更しました: {new_output}")
-            input("\nEnterで続行...")
+                print(f"Output folder changed to: {new_output}")
+            input("\nPress Enter to continue...")
         elif cmd == 'l':
             script_dir = os.path.dirname(os.path.abspath(__file__))
             log_file = os.path.join(script_dir, 'koemoji.log')
-            print(f"\n=== ログ表示 ({log_file}) ===")
-            print("[1] 最新20行  [2] エラーのみ  [3] 本日のログ  [4] 全ログ")
-            log_choice = input("\n選択: ").strip()
+            print(f"\n=== Log Display ({log_file}) ===")
+            print("[1] Last 20 lines  [2] Errors only  [3] Today's logs  [4] All logs")
+            log_choice = input("\nChoice: ").strip()
             
             if log_choice == '1':
-                print(f"\n--- 最新20行 ({log_file}) ---")
+                print(f"\n--- Last 20 lines ({log_file}) ---")
                 try:
                     # Python内部でtail機能を実装
                     with open(log_file, 'r', encoding='utf-8') as f:
@@ -264,11 +273,11 @@ def main():
                         for line in last_lines:
                             print(line, end='')
                 except FileNotFoundError:
-                    print(f"ログファイルが見つかりません: {log_file}")
+                    print(f"Log file not found: {log_file}")
                 except Exception as e:
-                    print(f"エラー: {e}")
+                    print(f"Error: {e}")
             elif log_choice == '2':
-                print(f"\n--- エラーログ ({log_file}) ---")
+                print(f"\n--- Error logs ({log_file}) ---")
                 try:
                     # Python内部でgrep機能を実装
                     with open(log_file, 'r', encoding='utf-8') as f:
@@ -277,13 +286,13 @@ def main():
                             for line in error_lines:
                                 print(line, end='')
                         else:
-                            print("エラーは見つかりませんでした")
+                            print("No errors found")
                 except FileNotFoundError:
-                    print(f"ログファイルが見つかりません: {log_file}")
+                    print(f"Log file not found: {log_file}")
                 except Exception as e:
-                    print(f"エラー: {e}")
+                    print(f"Error: {e}")
             elif log_choice == '3':
-                print(f"\n--- 本日のログ ({log_file}) ---")
+                print(f"\n--- Today's logs ({log_file}) ---")
                 today = datetime.now().strftime('%Y-%m-%d')
                 try:
                     # Python内部でgrep機能を実装
@@ -293,28 +302,28 @@ def main():
                             for line in today_lines:
                                 print(line, end='')
                         else:
-                            print("本日のログはまだありません")
+                            print("No logs for today yet")
                 except FileNotFoundError:
-                    print(f"ログファイルが見つかりません: {log_file}")
+                    print(f"Log file not found: {log_file}")
                 except Exception as e:
-                    print(f"エラー: {e}")
+                    print(f"Error: {e}")
             elif log_choice == '4':
-                print(f"\n--- 全ログ ({log_file}) ---")
+                print(f"\n--- All logs ({log_file}) ---")
                 try:
                     with open(log_file, 'r', encoding='utf-8') as f:
                         content = f.read()
                         if content:
                             print(content)
                         else:
-                            print("ログファイルは空です")
+                            print("Log file is empty")
                 except FileNotFoundError:
-                    print(f"ログファイルが見つかりません: {log_file}")
+                    print(f"Log file not found: {log_file}")
                 except Exception as e:
-                    print(f"エラー: {e}")
+                    print(f"Error: {e}")
             else:
-                print("無効な選択です")
+                print("Invalid selection")
             
-            input("\nEnterで続行...")
+            input("\nPress Enter to continue...")
 
 def format_time(time_str):
     """時刻文字列をHH:MM形式に変換"""
