@@ -33,6 +33,7 @@ reports/*
 processed_files.json
 koemoji.log
 *.log
+koemoji.lock
 
 # Test coverage
 .coverage
