@@ -1,10 +1,9 @@
 @echo off
 setlocal EnableDelayedExpansion
-chcp 65001 > nul
 
-echo ╔═══════════════════════════════════════╗
-echo ║      KoeMojiAuto インストーラー       ║
-echo ╚═══════════════════════════════════════╝
+echo =====================================
+echo    KoeMojiAuto Installer
+echo =====================================
 echo.
 
 rem 管理者権限チェック
@@ -20,14 +19,14 @@ rem Python確認
 echo [1/5] Python環境を確認しています...
 python --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo [×] Pythonがインストールされていません
+    echo [X] Pythonがインストールされていません
     echo     https://www.python.org/ からインストールしてください
     pause
     exit /b 1
 )
 
 for /f "tokens=2" %%i in ('python --version 2^>^&1') do set PYVER=%%i
-echo [✓] Python %PYVER% を検出しました
+echo [OK] Python %PYVER% を検出しました
 
 rem FFmpeg確認
 echo [2/5] FFmpegを確認しています...
@@ -39,25 +38,26 @@ if %errorlevel% neq 0 (
     set /p CONTINUE="続行しますか？ (y/n): "
     if not "!CONTINUE!"=="y" exit /b 1
 ) else (
-    echo [✓] FFmpegが検出されました
+    echo [OK] FFmpegが検出されました
 )
 
 rem 依存関係インストール
 echo [3/5] 依存関係をインストールしています...
+cd /d "%~dp0"
 pip install -r requirements.txt
 if %errorlevel% neq 0 (
-    echo [×] 依存関係のインストールに失敗しました
+    echo [X] 依存関係のインストールに失敗しました
     pause
     exit /b 1
 )
-echo [✓] 依存関係をインストールしました
+echo [OK] 依存関係をインストールしました
 
 rem フォルダ作成
 echo [4/5] 必要なフォルダを作成しています...
 if not exist "input" mkdir "input"
 if not exist "output" mkdir "output" 
 if not exist "reports" mkdir "reports"
-echo [✓] フォルダを作成しました
+echo [OK] フォルダを作成しました
 
 rem タスクスケジューラー設定
 echo [5/5] 自動実行を設定しています...
@@ -68,28 +68,26 @@ schtasks /delete /tn "KoeMojiAutoStartup" /f >nul 2>&1
 
 schtasks /create /tn "KoeMojiAutoProcessor" /tr "%CURRENT_DIR%start_koemoji.bat" /sc daily /st 19:00 /f
 if %errorlevel% neq 0 (
-    echo [×] 定時実行タスクの作成に失敗しました
+    echo [X] 定時実行タスクの作成に失敗しました
     pause
     exit /b 1
 )
 
 schtasks /create /tn "KoeMojiAutoStartup" /tr "%CURRENT_DIR%check_and_start.bat" /sc onstart /ru "%USERNAME%" /f
 if %errorlevel% neq 0 (
-    echo [×] 起動時タスクの作成に失敗しました
+    echo [X] 起動時タスクの作成に失敗しました
     pause
     exit /b 1
 )
-echo [✓] タスクスケジューラーを設定しました
+echo [OK] タスクスケジューラーを設定しました
 
 rem 設定確認
 echo.
-echo ┌─────────────────────────────────────┐
-echo │          インストール完了！          │
-echo ├─────────────────────────────────────┤
-echo │ ・実行: start_koemoji.bat          │
-echo │ ・設定: tui.bat                    │
-echo │ ・自動実行: 毎日19時               │
-echo └─────────────────────────────────────┘
+echo インストール完了！
+echo.
+echo * 実行: start_koemoji.bat
+echo * 設定: tui.bat
+echo * 自動実行: 毎日19時
 echo.
 
 rem TUI起動の確認
