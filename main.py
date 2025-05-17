@@ -21,8 +21,8 @@ IS_WINDOWS = platform.system() == 'Windows'
 # ロギング設定
 from logging.handlers import RotatingFileHandler
 
-# ログローテーションの設定
-log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# ログローテーションの設定（分単位まで表示）
+log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M')
 
 # ファイルハンドラー（10MBでローテーション、5ファイル保持）
 file_handler = RotatingFileHandler(
@@ -39,8 +39,14 @@ console_handler.setFormatter(log_formatter)
 # ルートロガーの設定
 logging.basicConfig(
     level=logging.INFO,
-    handlers=[file_handler, console_handler]
+    handlers=[file_handler, console_handler],
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M'
 )
+
+# 外部ライブラリのログフォーマットも統一
+for handler in logging.root.handlers:
+    handler.setFormatter(log_formatter)
 
 logger = logging.getLogger("KoemojiAuto")
 
@@ -106,13 +112,13 @@ class KoemojiProcessor:
                 # 設定を保存
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(self.config, f, indent=2, ensure_ascii=False)
-                logger.info(f"設定を作成しました: {self.config_path}")
+                logger.info(f"⚙️  設定を作成しました: {self.config_path}")
                 print(f"\n設定が保存されました: {self.config_path}")
             else:
                 # 既存の設定を読み込み
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     self.config = json.load(f)
-                logger.info(f"設定を読み込みました: {self.config_path}")
+                logger.info(f"⚙️  設定を読み込みました: {self.config_path}")
                 
                 # 設定値の検証
                 self.validate_config()
@@ -122,15 +128,15 @@ class KoemojiProcessor:
                 folder_path = self.config.get(folder_key)
                 if not os.path.exists(folder_path):
                     os.makedirs(folder_path, exist_ok=True)
-                    logger.info(f"{folder_key}を作成しました: {folder_path}")
+                    logger.info(f"📁 {folder_key}を作成しました: {folder_path}")
                     
             # レポートフォルダの作成
             if not os.path.exists("reports"):
                 os.makedirs("reports", exist_ok=True)
-                logger.info("レポートフォルダを作成しました: reports")
+                logger.info("📊 レポートフォルダを作成しました: reports")
                     
         except Exception as e:
-            logger.error(f"設定の読み込み中にエラーが発生しました: {e}")
+            logger.error(f"❌ 設定の読み込み中にエラーが発生しました: {e}")
             # 最小限のデフォルト設定
             self.config = {
                 "input_folder": "input",
@@ -193,7 +199,7 @@ class KoemojiProcessor:
             else:
                 self.processed_files = set()
         except Exception as e:
-            logger.error(f"処理済み履歴の読み込みエラー: {e}")
+            logger.error(f"❌ 処理済み履歴の読み込みエラー: {e}")
             self.processed_files = set()
     
     def save_processed_history(self):
@@ -202,7 +208,7 @@ class KoemojiProcessor:
             with open(self.processed_history_path, 'w', encoding='utf-8') as f:
                 json.dump(list(self.processed_files), f)
         except Exception as e:
-            logger.error(f"処理済み履歴の保存エラー: {e}")
+            logger.error(f"❌ 処理済み履歴の保存エラー: {e}")
     
     def get_end_time(self):
         """終了時刻を取得"""
@@ -262,15 +268,15 @@ class KoemojiProcessor:
                 }
                 
                 self.processing_queue.append(file_info)
-                logger.info(f"キューに追加: {file_name}")
+                logger.info(f"➕ キューに追加: {file_name}")
                 
                 # 統計を記録
                 self.record_stat("queued")
             
-            logger.info(f"現在のキュー: {len(self.processing_queue)}件")
+            logger.info(f"📋 現在のキュー: {len(self.processing_queue)}件")
             
         except Exception as e:
-            logger.error(f"キュースキャン中にエラーが発生しました: {e}")
+            logger.error(f"❌ キュースキャン中にエラーが発生しました: {e}")
     
     def process_queued_files(self):
         """キューにあるファイルを処理"""
@@ -293,7 +299,7 @@ class KoemojiProcessor:
             max_cpu = self.config.get("max_cpu_percent", 95)
             
             if cpu_percent > max_cpu:
-                logger.info(f"CPU使用率が高すぎるため、処理を延期します: {cpu_percent}%")
+                logger.info(f"⏸️  CPU使用率が高すぎるため、処理を延期します: {cpu_percent}%")
                 return
             
             # 処理するファイル数を決定
@@ -312,7 +318,7 @@ class KoemojiProcessor:
                 self.process_file(file_path, model_size)
         
         except Exception as e:
-            logger.error(f"キュー処理中にエラーが発生しました: {e}")
+            logger.error(f"❌ キュー処理中にエラーが発生しました: {e}")
     
     def process_file(self, file_path, model_size=None):
         """ファイルを処理する"""
@@ -320,13 +326,13 @@ class KoemojiProcessor:
         try:
             # ファイルが存在するか確認
             if not os.path.exists(file_path):
-                logger.warning(f"ファイルが存在しません: {file_path}")
+                logger.warning(f"⚠️  ファイルが存在しません: {file_path}")
                 return
             
             # 処理中リストに追加
             self.files_in_process.add(file_path)
             file_name = os.path.basename(file_path)
-            logger.info(f"ファイル処理開始: {file_name} (モデル: {model_size})")
+            logger.info(f"🔄 ファイル処理開始: {file_name} (モデル: {model_size})")
             
             # 文字起こし処理を実行
             transcription = self.transcribe_audio(file_path, model_size)
@@ -348,7 +354,7 @@ class KoemojiProcessor:
                 
                 # 処理時間を計算
                 processing_time = time.time() - start_time
-                logger.info(f"文字起こし完了: {file_name} -> {output_file} (処理時間: {processing_time:.2f}秒)")
+                logger.info(f"✅ 文字起こし完了: {file_name} -> {output_file} (処理時間: {processing_time:.2f}秒)")
                 
                 # 処理済みリストに追加
                 file_id = f"{file_name}_{os.path.getsize(file_path)}"
@@ -361,28 +367,28 @@ class KoemojiProcessor:
                 
                 # 通知
                 self.send_notification(
-                    "Koemoji文字起こし完了",
+                    "✅ Koemoji文字起こし完了",
                     f"ファイル: {file_name}\n出力: {output_file}\n処理時間: {processing_time:.2f}秒"
                 )
             else:
-                logger.error(f"文字起こし失敗: {file_name}")
+                logger.error(f"❌ 文字起こし失敗: {file_name}")
                 # 統計を記録
                 self.record_stat("failed")
                 
                 # エラー通知
                 self.send_notification(
-                    "Koemoji文字起こしエラー",
+                    "❌ Koemoji文字起こしエラー",
                     f"ファイル: {file_name}\n処理に失敗しました。"
                 )
         
         except Exception as e:
-            logger.error(f"ファイル処理中にエラーが発生しました: {file_path} - {e}")
+            logger.error(f"❌ ファイル処理中にエラーが発生しました: {file_path} - {e}")
             # 統計を記録
             self.record_stat("failed")
             
             # エラー通知
             self.send_notification(
-                "Koemoji処理エラー",
+                "❌ Koemoji処理エラー",
                 f"ファイル: {os.path.basename(file_path)}\nエラー: {e}"
             )
         finally:
@@ -402,7 +408,7 @@ class KoemojiProcessor:
             # モデルが未ロードか設定が変わった場合のみ再ロード
             if (self._whisper_model is None or 
                 self._model_config != (model_size, compute_type)):
-                logger.info(f"Whisperモデルをロード中: {model_size}")
+                logger.info(f"🧠 Whisperモデルをロード中: {model_size}")
                 self._whisper_model = WhisperModel(model_size, compute_type=compute_type)
                 self._model_config = (model_size, compute_type)
             
@@ -423,7 +429,7 @@ class KoemojiProcessor:
             return "\n".join(transcription)
         
         except Exception as e:
-            logger.error(f"文字起こし処理中にエラーが発生しました: {e}")
+            logger.error(f"❌ 文字起こし処理中にエラーが発生しました: {e}")
             return None
     
     def generate_daily_summary_for_date(self, date_obj):
@@ -431,7 +437,7 @@ class KoemojiProcessor:
         try:
             # 日付をフォーマット
             target_date = date_obj.strftime("%Y-%m-%d")
-            logger.info(f"{target_date}の日次サマリーを生成しています")
+            logger.info(f"📊 {target_date}の日次サマリーを生成しています")
             
             # 今日の統計を取得（存在しない場合はデフォルト値）
             stats = self.daily_stats.get(target_date, {
@@ -471,14 +477,14 @@ class KoemojiProcessor:
             
             # 通知送信
             self.send_notification(
-                f"Koemoji日次サマリー ({target_date})",
+                f"📊 Koemoji日次サマリー ({target_date})",
                 f"処理完了: {stats['processed']}件\n"
                 f"処理失敗: {stats['failed']}件\n"
                 f"残りキュー: {len(self.processing_queue)}件"
             )
         
         except Exception as e:
-            logger.error(f"日次サマリー生成中にエラーが発生しました: {e}")
+            logger.error(f"❌ 日次サマリー生成中にエラーが発生しました: {e}")
     
     def generate_daily_summary(self):
         """今日の処理サマリーを生成（互換性のため残す）"""
@@ -486,7 +492,7 @@ class KoemojiProcessor:
     
     def send_notification(self, title, message):
         """通知をログに記録する"""
-        logger.info(f"通知: {title} - {message}")
+        logger.info(f"{title} - {message}")
     
     def is_already_running(self):
         """既に実行中かチェック"""
@@ -517,29 +523,29 @@ class KoemojiProcessor:
         try:
             # 既に実行中かチェック
             if self.is_already_running():
-                logger.error("既に別のKoemojiAutoプロセスが実行中です。")
+                logger.error("⚠️  既に別のKoemojiAutoプロセスが実行中です。")
                 self.send_notification(
-                    "KoemojiAutoエラー",
+                    "⚠️  KoemojiAutoエラー",
                     "既に別のプロセスが実行中です。"
                 )
                 return
             
-            logger.info("KoemojiAuto処理を開始しました")
+            logger.info("🚀 KoemojiAuto処理を開始しました")
             
             # 開始通知
             self.send_notification(
-                "KoemojiAuto",
+                "🎙️ KoemojiAuto",
                 "自動文字起こしサービスが開始されました"
             )
             
             # 24時間モードか時間制限モードかを確認
             continuous_mode = self.config.get("continuous_mode", False)
             if continuous_mode:
-                logger.info("24時間連続モードで動作します")
+                logger.info("♾️  24時間連続モードで動作します")
                 end_time = None  # 24時間モードでは終了時刻はない
             else:
                 end_time = self.get_end_time()
-                logger.info(f"時間制限モードで動作します（終了時刻: {end_time}）")
+                logger.info(f"⏰ 時間制限モードで動作します（終了時刻: {end_time}）")
             
             scan_interval = self.config.get("scan_interval_minutes", 30) * 60  # 秒に変換
             last_scan_time = 0
@@ -576,7 +582,7 @@ class KoemojiProcessor:
             
             # 時間制限モードの終了処理
             if not continuous_mode:
-                logger.info("処理時間が終了しました")
+                logger.info("⏰ 処理時間が終了しました")
                 
                 # 日次サマリーを生成
                 self.generate_daily_summary()
@@ -588,19 +594,19 @@ class KoemojiProcessor:
                 
                 if remaining > 0:
                     self.send_notification(
-                        "KoemojiAuto処理終了",
+                        "⏰ KoemojiAuto処理終了",
                         f"処理完了: {processed}件\n残りキュー: {remaining}件"
                     )
                 else:
                     self.send_notification(
-                        "KoemojiAuto処理完了",
+                        "🎉 KoemojiAuto処理完了",
                         f"すべてのファイル({processed}件)の処理が完了しました"
                     )
             
         except Exception as e:
-            logger.error(f"処理中にエラーが発生しました: {e}")
+            logger.error(f"❌ 処理中にエラーが発生しました: {e}")
         finally:
-            logger.info("KoemojiAutoを終了しました")
+            logger.info("👋 KoemojiAutoを終了しました")
 
 
 # 実行例

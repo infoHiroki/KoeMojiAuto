@@ -1,0 +1,3 @@
+@echo off
+echo KoemojiAuto WebUIを起動しています...
+python3 webui.py

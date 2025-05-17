@@ -1,5 +1,14 @@
 # KoeMojiAuto コマンド一覧
 
+## WebUI
+
+### 起動
+```bash
+./start_webui.sh   # macOS/Linux
+start_webui.bat    # Windows
+```
+ブラウザで http://localhost:8080 にアクセス
+
 ## 基本操作
 
 ### Windows

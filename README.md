@@ -1,7 +1,7 @@
 # KoemojiAuto - 自動文字起こしシステム
 
 音声・動画ファイルから自動で文字起こしを行うクロスプラットフォーム対応ツールです。
-Whisperモデルを使用した高精度な文字起こしを、手動実行で開始し、バックグラウンドで継続動作します。
+Whisperモデルを使用した高精度な文字起こしを、WebUIから簡単に操作できます。
 
 ## 使い方
 
@@ -10,18 +10,39 @@ Whisperモデルを使用した高精度な文字起こしを、手動実行で�
    inputフォルダに音声・動画ファイルを入れる
    ```
 
-2. **実行方法（3つから選択）**
+2. **実行方法**
 
-   ### 方法A: TUIで実行（推奨）
+   ### 推奨: WebUIで実行
+   ```bash
+   # WebUI起動
+   ./start_webui.sh  # macOS/Linux
+   start_webui.bat   # Windows
+   ```
+   ブラウザで http://localhost:8080 にアクセス
+   
+   **WebUIの特徴:**
+   - ✅ ブラウザから簡単操作（開始/停止/設定変更）
+   - ✅ リアルタイムでステータスとログを確認
+   - ✅ バックグラウンド実行（ブラウザを閉じても処理継続）
+   - ✅ リモートアクセス可能（同一ネットワーク内）
+
+   ### その他の実行方法
+   
+   <details>
+   <summary>TUIで実行（SSH環境向け）</summary>
+   
    ```bash
    ./tui.sh  # macOS/Linux
    tui.bat   # Windows
    ```
    TUIから `[r] 実行` を選択
-
-   ### 方法B: コマンドラインで実行
+   </details>
+   
+   <details>
+   <summary>コマンドラインで実行（スクリプト連携向け）</summary>
+   
    ```bash
-   # 実行（バックグラウンドで動作開始）
+   # 実行
    ./start_koemoji.sh  # macOS/Linux
    start_koemoji.bat   # Windows
 
@@ -33,13 +54,16 @@ Whisperモデルを使用した高精度な文字起こしを、手動実行で�
    ./status_koemoji.sh # macOS/Linux
    status_koemoji.bat  # Windows
    ```
-   ※ 実行後はターミナルを閉じても処理は継続されます
-
-   ### 方法C: Pythonで直接実行（フォアグラウンド）
+   </details>
+   
+   <details>
+   <summary>Pythonで直接実行（開発・デバッグ用）</summary>
+   
    ```bash
-   python main.py
+   python3 main.py
    ```
-   ※ この方法ではターミナルを閉じると処理も停止します（開発・デバッグ用）
+   ※ フォアグラウンドで実行（ターミナルを閉じると停止）
+   </details>
 
 3. **文字起こし結果を確認**
    ```
@@ -91,62 +115,66 @@ Whisperモデルを使用した高精度な文字起こしを、手動実行で�
 git clone https://github.com/infoHiroki/KoeMojiAuto.git
 cd KoeMojiAuto
 
-# 依存関係を自動インストール（推奨）
-python install_dependencies.py
-
-# または手動インストール
+# 依存関係をインストール
 pip install -r requirements.txt
-# FFmpegは別途インストールが必要
+
+# FFmpegをインストール（OSに応じて）
+# macOS: brew install ffmpeg
+# Ubuntu: sudo apt install ffmpeg
+# Windows: 公式サイトからダウンロード
 ```
 
-依存関係インストーラーは以下を自動的に設定します：
-- FFmpeg のインストール（OS別に最適な方法を選択）
-- Faster Whisper のインストール（GPU/CPU自動判定）
-- その他の必要なPythonパッケージ
-
-### 3. 使い方
-
-#### TUIで管理（推奨）
+### 3. WebUIを起動
 
 ```bash
-./tui.sh  # macOS/Linux
-tui.bat   # Windows
+# macOS/Linux
+./start_webui.sh
+
+# Windows
+start_webui.bat
 ```
 
-TUI画面：
+ブラウザで http://localhost:8080 を開いて使用開始！
+
+
+## 設定ファイル
+
+`config.json` で各種設定を管理：
+
+```json
+{
+  "input_folder": "input",          // 入力フォルダ
+  "output_folder": "output",        // 出力フォルダ
+  "continuous_mode": true,          // 24時間モード（true）/時間指定モード（false）
+  "process_start_time": "19:00",    // 処理開始時刻（時間指定モード時）
+  "process_end_time": "07:00",      // 処理終了時刻（時間指定モード時）
+  "scan_interval_minutes": 30,      // フォルダスキャン間隔（分）
+  "max_concurrent_files": 3,        // 同時処理ファイル数
+  "whisper_model": "large",         // Whisperモデル（tiny/small/medium/large）
+  "language": "ja",                 // 言語設定
+  "compute_type": "int8",           // 計算精度
+  "max_cpu_percent": 80             // CPU使用率上限（%）
+}
 ```
-╔═══════════════════════════════════════╗
-║          KoemojiAuto TUI              ║
-╠═══════════════════════════════════════╣
-║ Status: STOPPED                       ║
-║───────────────────────────────────────║
-║ Mode  : 24-hour continuous            ║
-║ Model : large                         ║
-╠═══════════════════════════════════════╣
-║ Input : /path/to/input                ║
-║ Output: /path/to/output               ║
-╚═══════════════════════════════════════╝
 
-Commands:
-[r] 実行  [s] 停止  [t] ステータス  [m] モデル  [c] モード
-[i] 入力フォルダ  [o] 出力フォルダ  [l] ログ表示  [q] 終了
-```
+## トラブルシューティング
 
-#### コマンドライン操作
+### WebUIにアクセスできない場合
+- ポート8080が使用されていないか確認
+- ファイアウォール設定を確認
+- 別のポートで起動: `app.run(port=8081)` に変更
 
-```bash
-# 実行
-./start_koemoji.sh  # macOS/Linux
-start_koemoji.bat   # Windows
+### 文字起こしが開始されない場合
+- 入力フォルダに音声/動画ファイルがあるか確認
+- 対応形式: mp3, mp4, wav, m4a, mov, avi, flac, ogg, aac
+- ログファイル（koemoji.log）でエラーを確認
 
-# 停止
-./stop_koemoji.sh   # macOS/Linux
-stop_koemoji.bat    # Windows
+### メモリ不足エラー
+- Whisperモデルをsmallやtinyに変更
+- max_concurrent_filesを減らす
+- max_cpu_percentを下げる
 
-# ステータス確認
-./status_koemoji.sh # macOS/Linux
-status_koemoji.bat  # Windows
-```
+
 
 ## 動作モード
 
