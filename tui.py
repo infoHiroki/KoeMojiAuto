@@ -256,26 +256,48 @@ def main():
             
             if log_choice == '1':
                 print(f"\n--- 最新20行 ({log_file}) ---")
-                result = subprocess.run(['tail', '-n', '20', log_file], 
-                                      capture_output=True, text=True)
-                print(result.stdout)
+                try:
+                    # Python内部でtail機能を実装
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                        last_lines = lines[-20:] if len(lines) > 20 else lines
+                        for line in last_lines:
+                            print(line, end='')
+                except FileNotFoundError:
+                    print(f"ログファイルが見つかりません: {log_file}")
+                except Exception as e:
+                    print(f"エラー: {e}")
             elif log_choice == '2':
                 print(f"\n--- エラーログ ({log_file}) ---")
-                result = subprocess.run(['grep', 'ERROR', log_file], 
-                                      capture_output=True, text=True)
-                if result.stdout:
-                    print(result.stdout)
-                else:
-                    print("エラーは見つかりませんでした")
+                try:
+                    # Python内部でgrep機能を実装
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        error_lines = [line for line in f if 'ERROR' in line]
+                        if error_lines:
+                            for line in error_lines:
+                                print(line, end='')
+                        else:
+                            print("エラーは見つかりませんでした")
+                except FileNotFoundError:
+                    print(f"ログファイルが見つかりません: {log_file}")
+                except Exception as e:
+                    print(f"エラー: {e}")
             elif log_choice == '3':
                 print(f"\n--- 本日のログ ({log_file}) ---")
                 today = datetime.now().strftime('%Y-%m-%d')
-                result = subprocess.run(['grep', today, log_file], 
-                                      capture_output=True, text=True)
-                if result.stdout:
-                    print(result.stdout)
-                else:
-                    print("本日のログはまだありません")
+                try:
+                    # Python内部でgrep機能を実装
+                    with open(log_file, 'r', encoding='utf-8') as f:
+                        today_lines = [line for line in f if today in line]
+                        if today_lines:
+                            for line in today_lines:
+                                print(line, end='')
+                        else:
+                            print("本日のログはまだありません")
+                except FileNotFoundError:
+                    print(f"ログファイルが見つかりません: {log_file}")
+                except Exception as e:
+                    print(f"エラー: {e}")
             elif log_choice == '4':
                 print(f"\n--- 全ログ ({log_file}) ---")
                 try:

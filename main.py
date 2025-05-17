@@ -107,6 +107,9 @@ class KoemojiProcessor:
                     self.config = json.load(f)
                 logger.info(f"設定を読み込みました: {self.config_path}")
                 
+                # 設定値の検証
+                self.validate_config()
+                
             # 入力・出力フォルダの確認と作成
             for folder_key in ["input_folder", "output_folder"]:
                 folder_path = self.config.get(folder_key)
@@ -131,6 +134,59 @@ class KoemojiProcessor:
                 "whisper_model": "tiny",
                 "language": "ja"
             }
+    
+    def validate_config(self):
+        """設定値の妥当性をチェック"""
+        
+        # 必須項目のチェック
+        required_fields = ["input_folder", "output_folder", "whisper_model", "language"]
+        for field in required_fields:
+            if field not in self.config:
+                raise ValueError(f"必須設定項目が不足しています: {field}")
+        
+        # 時刻形式のチェック
+        time_fields = ["process_start_time", "process_end_time", "daily_summary_time"]
+        for field in time_fields:
+            if field in self.config:
+                time_str = self.config[field]
+                if not self._validate_time_format(time_str):
+                    logger.warning(f"不正な時刻形式: {field}={time_str}")
+                    self.config[field] = "07:00"  # デフォルト値
+        
+        # 数値の妥当性チェック
+        if "scan_interval_minutes" in self.config:
+            val = self.config["scan_interval_minutes"]
+            if not isinstance(val, int) or val < 1 or val > 1440:
+                logger.warning(f"不正なスキャン間隔: {val}")
+                self.config["scan_interval_minutes"] = 30
+        
+        if "max_concurrent_files" in self.config:
+            val = self.config["max_concurrent_files"]
+            if not isinstance(val, int) or val < 1 or val > 10:
+                logger.warning(f"不正な同時処理数: {val}")
+                self.config["max_concurrent_files"] = 3
+        
+        if "max_cpu_percent" in self.config:
+            val = self.config["max_cpu_percent"]
+            if not isinstance(val, (int, float)) or val < 10 or val > 100:
+                logger.warning(f"不正なCPU使用率上限: {val}")
+                self.config["max_cpu_percent"] = 95
+        
+        # Whisperモデルのチェック
+        valid_models = ["tiny", "small", "medium", "large"]
+        if self.config["whisper_model"] not in valid_models:
+            logger.warning(f"不正なWhisperモデル: {self.config['whisper_model']}")
+            self.config["whisper_model"] = "large"
+    
+    def _validate_time_format(self, time_str):
+        """時刻形式のチェック"""
+        try:
+            if ":" not in time_str:
+                return False
+            hour, minute = time_str.split(":")
+            return 0 <= int(hour) < 24 and 0 <= int(minute) < 60
+        except:
+            return False
     
     def load_processed_history(self):
         """処理済みファイルの履歴を読み込む"""
@@ -513,14 +569,23 @@ class KoemojiProcessor:
         """ロックを取得（同時実行を防ぐ）"""
         try:
             self.lock_file = open(self.lock_file_path, 'w')
-            fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            self.lock_file.write(str(os.getpid()))  # プロセスIDを書き込む
-            self.lock_file.flush()
-            return True
+            try:
+                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                self.lock_file.write(str(os.getpid()))  # プロセスIDを書き込む
+                self.lock_file.flush()
+                return True
+            except IOError:
+                # ロックの取得に失敗した場合、ファイルを閉じる
+                self.lock_file.close()
+                self.lock_file = None
+                raise
         except IOError as e:
             logger.warning(f"別のKoemojiAutoプロセスが既に実行中です: {e}")
             if self.lock_file:
-                self.lock_file.close()
+                try:
+                    self.lock_file.close()
+                except:
+                    pass
                 self.lock_file = None
             return False
     
@@ -529,13 +594,22 @@ class KoemojiProcessor:
         if self.lock_file:
             try:
                 fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
-                self.lock_file.close()
-                self.lock_file = None
-                # ロックファイルを削除
-                if self.lock_file_path.exists():
-                    os.remove(self.lock_file_path)
             except Exception as e:
                 logger.error(f"ロックの解放中にエラーが発生しました: {e}")
+            finally:
+                # 必ずファイルを閉じる
+                try:
+                    self.lock_file.close()
+                except:
+                    pass
+                self.lock_file = None
+                
+                # ロックファイルを削除
+                try:
+                    if self.lock_file_path.exists():
+                        os.remove(self.lock_file_path)
+                except Exception as e:
+                    logger.error(f"ロックファイルの削除中にエラーが発生しました: {e}")
     
     def run(self):
         """メイン処理ループ"""
