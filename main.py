@@ -15,13 +15,8 @@ from datetime import datetime, time as datetime_time
 import psutil
 import platform
 
-# OS判定
+# OS判定  
 IS_WINDOWS = platform.system() == 'Windows'
-
-if IS_WINDOWS:
-    import msvcrt
-else:
-    import fcntl
 
 # ロギング設定
 from logging.handlers import RotatingFileHandler
@@ -56,10 +51,6 @@ class KoemojiProcessor:
         self.load_config()
         self.processing_queue = []
         self.processed_files = set()
-        
-        # ロックファイルのパス
-        self.lock_file_path = Path("koemoji.lock")
-        self.lock_file = None
         
         # 処理済みファイル記録の読み込み
         self.processed_history_path = Path("processed_files.json")
@@ -527,83 +518,34 @@ class KoemojiProcessor:
         """通知をログに記録する"""
         logger.info(f"通知: {title} - {message}")
     
-    def acquire_lock(self):
-        """ロックを取得（同時実行を防ぐ）"""
-        try:
-            if IS_WINDOWS:
-                # Windows: ファイルが既に存在するかチェック
-                if self.lock_file_path.exists():
-                    # プロセスIDを読み取って、そのプロセスが生きているかチェック
-                    try:
-                        with open(self.lock_file_path, 'r') as f:
-                            pid = int(f.read().strip())
-                        # そのプロセスが存在するかチェック
-                        try:
-                            psutil.Process(pid)
-                            # プロセスが生きている
-                            raise IOError("Another process is already running")
-                        except psutil.NoSuchProcess:
-                            # プロセスが死んでいるので、古いロックファイルを削除
-                            os.remove(self.lock_file_path)
-                    except (ValueError, FileNotFoundError):
-                        # ファイル読み取りエラー、削除して続行
-                        if self.lock_file_path.exists():
-                            os.remove(self.lock_file_path)
-                
-                # 排他的にファイルを作成
-                self.lock_file = open(self.lock_file_path, 'x')
-            else:
-                # Unix/Linux/macOS: 通常通り
-                self.lock_file = open(self.lock_file_path, 'w')
-                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                
-            pid_str = str(os.getpid())
-            self.lock_file.write(pid_str)  # プロセスIDを書き込む
-            self.lock_file.flush()
-            # macOSでの確実な書き込みのため
-            os.fsync(self.lock_file.fileno())
-            logger.debug(f"ロックファイルにPID {pid_str} を書き込みました")
-            return True
-            
-        except (IOError, OSError) as e:
-            logger.warning(f"別のKoemojiAutoプロセスが既に実行中です: {e}")
-            if self.lock_file:
-                try:
-                    self.lock_file.close()
-                except:
-                    pass
-                self.lock_file = None
-            return False
-    
-    def release_lock(self):
-        """ロックを解放"""
-        if self.lock_file:
+    def is_already_running(self):
+        """既に実行中かチェック"""
+        current_pid = os.getpid()
+        script_path = os.path.abspath(__file__)
+        
+        for proc in psutil.process_iter(['pid', 'cmdline']):
             try:
-                if not IS_WINDOWS:
-                    # Unix/Linux/macOS: fcntlを使ってアンロック
-                    fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
-            except Exception as e:
-                logger.error(f"ロックの解放中にエラーが発生しました: {e}")
-            finally:
-                # 必ずファイルを閉じる
-                try:
-                    self.lock_file.close()
-                except:
-                    pass
-                self.lock_file = None
-                
-                # ロックファイルを削除
-                try:
-                    if self.lock_file_path.exists():
-                        os.remove(self.lock_file_path)
-                except Exception as e:
-                    logger.error(f"ロックファイルの削除中にエラーが発生しました: {e}")
+                if proc.pid == current_pid:
+                    continue
+                    
+                cmdline = proc.info.get('cmdline')
+                if cmdline and len(cmdline) > 0:
+                    # コマンドラインにmain.pyが含まれているかチェック
+                    cmdline_str = ' '.join(cmdline)
+                    if 'main.py' in cmdline_str or script_path in cmdline_str:
+                        logger.debug(f"既存のプロセスを検出: PID={proc.pid}, CMD={cmdline_str[:100]}")
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+        
+        return False
+    
     
     def run(self):
         """メイン処理ループ"""
         try:
-            # ロックを取得
-            if not self.acquire_lock():
+            # 既に実行中かチェック
+            if self.is_already_running():
                 logger.error("既に別のKoemojiAutoプロセスが実行中です。")
                 self.send_notification(
                     "KoemojiAutoエラー",
@@ -686,8 +628,6 @@ class KoemojiProcessor:
         except Exception as e:
             logger.error(f"処理中にエラーが発生しました: {e}")
         finally:
-            # ロックを解放
-            self.release_lock()
             logger.info("KoemojiAutoを終了しました")
 
 

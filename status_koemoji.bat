@@ -2,46 +2,30 @@
 echo KoemojiAuto Status
 echo ==================
 
-rem ロックファイルを確認
-set LOCK_FILE=koemoji.lock
+rem main.pyプロセスを探す
+set "FOUND=0"
+for /f "skip=1 tokens=1,2" %%A in ('wmic process where "CommandLine like '%%python%%main.py%%'" get ProcessId^,CommandLine 2^>NUL') do (
+    if "%%A" neq "" (
+        echo Status: Running
+        echo Process ID: %%A
+        set "FOUND=1"
+        goto :DETAILS
+    )
+)
 
-if not exist "%LOCK_FILE%" (
+if %FOUND%==0 (
     echo Status: Not running
     exit /b 0
 )
 
-rem プロセスIDを読み取る
-set /p PID=<"%LOCK_FILE%"
-
-if "%PID%"=="" (
-    echo Status: Unknown [cannot read lock file]
-    exit /b 1
-)
-
-rem プロセスが実行中か確認
-tasklist /FI "PID eq %PID%" 2>NUL | find /I /N "%PID%" >NUL
-if errorlevel 1 (
-    echo Status: Not running
-    echo Note: Stale lock file found. Cleaning up...
-    del /f "%LOCK_FILE%"
-    exit /b 0
-)
-
-echo Status: Running
-echo Process ID: %PID%
-
+:DETAILS
 echo.
 echo Process details:
-wmic process where ProcessId=%PID% get ProcessId,ParentProcessId,CreationDate 2>NUL
+wmic process where "CommandLine like '%%python%%main.py%%'" get ProcessId,PageFileUsage,WorkingSetSize /format:table
 
+rem 最新のログ
 echo.
-echo Memory usage:
-wmic process where ProcessId=%PID% get ProcessId,VirtualSize,WorkingSetSize 2>NUL
-
-rem 最新のログ表示
-set LOG_FILE=koemoji.log
-if exist "%LOG_FILE%" (
-    echo.
-    echo Recent log entries:
-    powershell -Command "Get-Content '%LOG_FILE%' -Tail 5"
+echo Recent log entries:
+if exist koemoji.log (
+    powershell -command "Get-Content koemoji.log -Tail 5"
 )

@@ -1,53 +1,37 @@
 #!/bin/bash
 
 echo "Stopping KoemojiAuto..."
+cd "$(dirname "$0")"
 
-# ロックファイルからプロセスIDを取得
-LOCK_FILE="koemoji.lock"
+# main.pyを実行しているプロセスを探す
+PIDS=$(ps aux | grep -E "python[3]?.*main\.py" | grep -v grep | awk '{print $2}')
 
-if [ ! -f "$LOCK_FILE" ]; then
+if [ -z "$PIDS" ]; then
     echo "KoemojiAuto is not running"
+    # ロックファイルが残っていれば削除
+    rm -f koemoji.lock
     exit 0
 fi
 
-# プロセスIDを読み取る
-PID=$(cat "$LOCK_FILE" 2>/dev/null)
-
-if [ -z "$PID" ]; then
-    echo "Could not read process ID from lock file"
-    exit 1
-fi
-
-# プロセスが実行中か確認
-if kill -0 "$PID" 2>/dev/null; then
+# 見つかったプロセスを停止
+for PID in $PIDS; do
     echo "Stopping process $PID..."
-    # グレースフルシャットダウン（SIGTERM）
-    kill "$PID"
-    
-    # プロセスが終了するまで待つ（最大10秒）
-    for i in {1..10}; do
-        if ! kill -0 "$PID" 2>/dev/null; then
-            echo "KoemojiAuto stopped successfully"
-            rm -f "$LOCK_FILE"
-            exit 0
-        fi
-        sleep 1
-    done
-    
-    # 強制終了が必要な場合
+    kill "$PID" 2>/dev/null
+done
+
+# プロセスが終了するまで少し待つ
+sleep 2
+
+# まだ残っていれば強制終了
+REMAINING_PIDS=$(ps aux | grep -E "python[3]?.*main\.py" | grep -v grep | awk '{print $2}')
+if [ ! -z "$REMAINING_PIDS" ]; then
     echo "Force stopping..."
-    kill -9 "$PID"
-    sleep 1
-    
-    if ! kill -0 "$PID" 2>/dev/null; then
-        echo "KoemojiAuto stopped"
-        rm -f "$LOCK_FILE"
-    else
-        echo "Failed to stop KoemojiAuto"
-        exit 1
-    fi
-else
-    echo "Process $PID is not running"
-    # ロックファイルをクリーンアップ
-    rm -f "$LOCK_FILE"
+    for PID in $REMAINING_PIDS; do
+        kill -9 "$PID" 2>/dev/null
+    done
 fi
+
+# ロックファイルを削除
+rm -f koemoji.lock
+
+echo "KoemojiAuto stopped successfully"

@@ -58,26 +58,26 @@ def get_schedule_time():
 
 def is_running():
     """KoeMojiAutoが実行中か確認"""
-    lock_file = "koemoji.lock"
-    if not os.path.exists(lock_file):
-        return False
-    
     try:
-        with open(lock_file, 'r') as f:
-            pid = f.read().strip()
-        
-        if os.name == 'nt':  # Windows
-            result = subprocess.run(['tasklist', '/FI', f'PID eq {pid}'], 
-                                  capture_output=True, text=True)
-            return pid in result.stdout
-        else:  # Unix/macOS
+        import psutil
+        for proc in psutil.process_iter(['pid', 'cmdline']):
             try:
-                os.kill(int(pid), 0)
-                return True
-            except (OSError, ValueError):
-                return False
-    except:
+                cmdline = proc.info.get('cmdline')
+                if cmdline and len(cmdline) > 0:
+                    cmdline_str = ' '.join(cmdline)
+                    if 'main.py' in cmdline_str and 'python' in cmdline_str:
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
         return False
+    except:
+        # psutilが使えない場合は他の方法で確認
+        if os.name == 'nt':  # Windows
+            result = subprocess.run(['tasklist'], capture_output=True, text=True)
+            return 'python' in result.stdout and 'main.py' in result.stdout
+        else:  # Unix/macOS
+            result = subprocess.run(['ps', 'aux'], capture_output=True, text=True)
+            return 'python' in result.stdout and 'main.py' in result.stdout
 
 def main():
     while True:

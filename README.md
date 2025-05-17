@@ -259,8 +259,7 @@ KoeMojiAuto/
 ├── reports/            # 日次サマリー
 ├── config.json         # 設定ファイル
 ├── koemoji.log         # 実行ログ
-├── processed_files.json # 処理済みファイルリスト
-└── koemoji.lock        # プロセスロックファイル（自動生成）
+└── processed_files.json # 処理済みファイルリスト
 ```
 
 ## よくある質問（FAQ）
@@ -335,9 +334,9 @@ A: 深夜0時を過ぎてから確認。`reports`フォルダの権限も確認
 ./stop_koemoji.sh   # macOS/Linux
 stop_koemoji.bat    # Windows
 
-# 強制終了（最終手段）
-kill -9 $(cat koemoji.lock)  # Unix/macOS
-taskkill /F /PID $(type koemoji.lock)  # Windows
+# プロセスを直接停止（最終手段）
+pkill -f "python.*main.py"  # Unix/macOS
+taskkill /F /IM python.exe  # Windows（すべてのPythonプロセスが停止するので注意）
 ```
 
 ### ログの確認
@@ -351,9 +350,6 @@ Get-Content koemoji.log -Tail 50  # Windows PowerShell
 ```bash
 # 処理済みファイルリストをクリア
 rm processed_files.json
-
-# ロックファイルを削除（起動できない場合）
-rm koemoji.lock
 ```
 
 ## 開発者向け
