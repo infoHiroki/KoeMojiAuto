@@ -26,7 +26,4 @@ else
     echo "KoemojiAutoは実行されていません。"
 fi
 
-# ロックファイルを削除
-rm -f koemoji.lock
-
 echo "停止処理が完了しました。"

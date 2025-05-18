@@ -437,41 +437,48 @@ def index():
         
         function start() {
             const btn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
             btn.disabled = true;
+            stopBtn.disabled = true;  // 開始処理中は停止ボタンも無効化
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 開始中';
             
             fetch('/start', {method: 'POST'})
                 .then(() => {
                     setTimeout(() => {
-                        btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-play"></i> 開始';
-                        updateStatus();
+                        updateStatus();  // updateStatusでボタンの状態を設定
                     }, 2000);
                     updateLog();
                 })
                 .catch(() => {
                     btn.disabled = false;
+                    stopBtn.disabled = true;
                     btn.innerHTML = '<i class="fas fa-play"></i> 開始';
+                    updateStatus();
                 });
         }
         
         function stop() {
             const btn = document.getElementById('stopBtn');
+            const startBtn = document.getElementById('startBtn');
+            
             btn.disabled = true;
+            startBtn.disabled = true;  // 停止処理中は開始ボタンも無効化
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 停止中';
             
             fetch('/stop', {method: 'POST'})
                 .then(() => {
                     // 停止処理が完了するまで待つ
                     setTimeout(() => {
-                        btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-stop"></i> 停止';
-                        updateStatus();
+                        updateStatus();  // updateStatusでボタンの状態を設定
                         updateLog();
                     }, 3000);  // 3秒待つ
                 })
                 .catch(() => {
                     btn.disabled = false;
+                    startBtn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-stop"></i> 停止';
                     updateStatus();
                 });
