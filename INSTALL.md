@@ -40,8 +40,6 @@ cp config.json.sample config.json
 
 設定ファイルを編集して、必要に応じて以下を調整：
 - `whisper_model`: "tiny", "small", "medium", "large" から選択
-- `continuous_mode`: true（24時間モード）または false（時間指定モード）
-- `process_start_time` / `process_end_time`: 時間指定モードでの処理時間
 
 ### 5. フォルダの準備
 入力フォルダと出力フォルダは自動的に作成されます。

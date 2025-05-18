@@ -347,21 +347,6 @@ def index():
             <div class="config">
                 <h3><i class="fas fa-cog"></i> 設定</h3>
             <div class="config-item">
-                <label>モード:</label>
-                <select id="mode" onchange="updateMode()">
-                    <option value="true">24時間連続</option>
-                    <option value="false">時間指定</option>
-                </select>
-            </div>
-            <div id="timeConfig" class="config-item" style="display: none;">
-                <label>処理時間:</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="time" id="start_time" onchange="updateConfig()" style="width: 120px;">
-                    <span>〜</span>
-                    <input type="time" id="end_time" onchange="updateConfig()" style="width: 120px;">
-                </div>
-            </div>
-            <div class="config-item">
                 <label>Whisperモデル:</label>
                 <select id="model" onchange="updateConfig()">
                     <option value="tiny">tiny</option>
@@ -405,12 +390,23 @@ def index():
                 .then(response => response.json())
                 .then(data => {
                     const statusDiv = document.getElementById('status');
+                    const startBtn = document.getElementById('startBtn');
+                    const stopBtn = document.getElementById('stopBtn');
+                    
                     if (data.running) {
                         statusDiv.className = 'status running';
                         statusDiv.innerHTML = '<i class="fas fa-check-circle"></i> <span>ステータス: 実行中 (PID: ' + data.pid + ')</span>';
+                        
+                        // 実行中は開始ボタンを無効化、停止ボタンを有効化
+                        startBtn.disabled = true;
+                        stopBtn.disabled = false;
                     } else {
                         statusDiv.className = 'status stopped';
                         statusDiv.innerHTML = '<i class="fas fa-times-circle"></i> <span>ステータス: 停止中</span>';
+                        
+                        // 停止中は開始ボタンを有効化、停止ボタンを無効化
+                        startBtn.disabled = false;
+                        stopBtn.disabled = true;
                     }
                 });
         }
@@ -419,30 +415,17 @@ def index():
             fetch('/config')
                 .then(response => response.json())
                 .then(data => {
-                    document.getElementById('mode').value = String(data.continuous_mode || false);
                     document.getElementById('model').value = data.whisper_model || 'large';
                     document.getElementById('input_folder').value = data.input_folder || '';
                     document.getElementById('output_folder').value = data.output_folder || '';
-                    document.getElementById('start_time').value = data.process_start_time || '19:00';
-                    document.getElementById('end_time').value = data.process_end_time || '07:00';
-                    updateMode();
                 });
-        }
-        
-        function updateMode() {
-            const isContinuous = document.getElementById('mode').value === 'true';
-            document.getElementById('timeConfig').style.display = isContinuous ? 'none' : 'block';
-            updateConfig();
         }
         
         function updateConfig() {
             const config = {
-                continuous_mode: document.getElementById('mode').value === 'true',
                 whisper_model: document.getElementById('model').value,
                 input_folder: document.getElementById('input_folder').value,
-                output_folder: document.getElementById('output_folder').value,
-                process_start_time: document.getElementById('start_time').value,
-                process_end_time: document.getElementById('end_time').value
+                output_folder: document.getElementById('output_folder').value
             };
             
             fetch('/config', {
@@ -479,16 +462,18 @@ def index():
             
             fetch('/stop', {method: 'POST'})
                 .then(() => {
+                    // 停止処理が完了するまで待つ
                     setTimeout(() => {
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-stop"></i> 停止';
                         updateStatus();
-                    }, 2000);
-                    updateLog();
+                        updateLog();
+                    }, 3000);  // 3秒待つ
                 })
                 .catch(() => {
                     btn.disabled = false;
                     btn.innerHTML = '<i class="fas fa-stop"></i> 停止';
+                    updateStatus();
                 });
         }
         
@@ -614,8 +599,8 @@ def index():
         updateLog();
         
         // 定期更新
-        setInterval(updateStatus, 5000);
-        setInterval(updateLog, 3000);
+        setInterval(updateStatus, 2000);  // 2秒ごとにステータス更新
+        setInterval(updateLog, 5000);     // 5秒ごとにログ更新
     </script>
 </body>
 </html>
@@ -663,8 +648,16 @@ def start():
 def stop():
     """KoemojiAuto停止"""
     script = './stop_koemoji.sh' if os.name != 'nt' else 'stop_koemoji.bat'
-    subprocess.run([script])
-    return jsonify({"status": "stopped"})
+    result = subprocess.run([script], capture_output=True, text=True)
+    
+    # 停止処理の完了を確認
+    time.sleep(1)  # 停止処理が完了するまで少し待つ
+    
+    return jsonify({
+        "status": "stopped",
+        "output": result.stdout,
+        "error": result.stderr
+    })
 
 @app.route('/log')
 def log():

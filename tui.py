@@ -24,37 +24,6 @@ def save_config(config):
     with open(config_path, 'w') as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
-def get_schedule_time():
-    """スケジュールの開始時刻を取得"""
-    # まずconfig.jsonから取得を試みる
-    config = load_config()
-    if 'process_start_time' in config:
-        return config['process_start_time']
-    
-    # config.jsonにない場合は既存の方法で取得
-    try:
-        if os.name == 'nt':
-            result = subprocess.run(['schtasks', '/query', '/tn', 'KoemojiAutoProcessor', '/v', '/fo', 'list'], 
-                                  capture_output=True, text=True)
-            for line in result.stdout.split('\n'):
-                if '開始時刻:' in line or 'Start Time:' in line:
-                    time_str = line.split(':')[-2:]
-                    return f"{time_str[0][-2:]}:{time_str[1][:2]}"
-        else:
-            # macOSの場合はplistから読み取る
-            plist_path = os.path.expanduser('~/Library/LaunchAgents/com.koemoji.auto.plist')
-            if os.path.exists(plist_path):
-                with open(plist_path, 'r') as f:
-                    content = f.read()
-                    if '<key>Hour</key>' in content:
-                        import re
-                        hour = re.search(r'<key>Hour</key>\s*<integer>(\d+)</integer>', content)
-                        minute = re.search(r'<key>Minute</key>\s*<integer>(\d+)</integer>', content)
-                        if hour and minute:
-                            return f"{hour.group(1).zfill(2)}:{minute.group(1).zfill(2)}"
-        return "19:00"
-    except:
-        return "19:00"
 
 def is_running():
     """KoeMojiAutoが実行中か確認"""
@@ -87,7 +56,6 @@ def main():
         clear()
         config = load_config()
         running = is_running()  # 毎回ステータスをチェック
-        start_time = config.get('process_start_time', '19:00')
         
         # ステータス表示
         def format_line(text, width=40):
@@ -112,13 +80,6 @@ def main():
             print("║" + format_line(" Status: STOPPED", 39) + "║")
         
         print("║───────────────────────────────────────║")
-        if config.get('continuous_mode'):
-            print("║" + format_line(" Mode  : 24-hour continuous", 39) + "║")
-        else:
-            print("║" + format_line(f" Mode  : Time-limited", 39) + "║")
-            print("║" + format_line(f" Start : {start_time}", 39) + "║")
-            end_time = config.get('process_end_time', '07:00')
-            print("║" + format_line(f" End   : {end_time}", 39) + "║")
         print("║" + format_line(f" Model : {config.get('whisper_model', 'large')}", 39) + "║")
         print("╠═══════════════════════════════════════╣")
         # 現在のフォルダ設定を表示
@@ -131,7 +92,7 @@ def main():
         
         # コマンド
         print("Commands:")
-        print("[r] 実行  [s] 停止  [t] ステータス  [m] モデル  [c] モード")
+        print("[r] 実行  [s] 停止  [t] ステータス  [m] モデル")
         print("[i] 入力フォルダ  [o] 出力フォルダ  [l] ログ表示  [q] 終了")
         print()
         
@@ -184,9 +145,6 @@ def main():
             current = config.get('whisper_model', 'large')
             idx = models.index(current)
             config['whisper_model'] = models[(idx + 1) % 4]
-            save_config(config)
-        elif cmd == 'c':
-            config['continuous_mode'] = not config.get('continuous_mode', False)
             save_config(config)
         elif cmd == 'i':
             print(f"\nCurrent input folder: {config.get('input_folder', 'Not set')}")

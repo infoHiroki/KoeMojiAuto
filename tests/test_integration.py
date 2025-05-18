@@ -51,8 +51,7 @@ class TestIntegration:
                 "output_folder": output_dir,
                 "max_concurrent_files": 2,
                 "whisper_model": "large",
-                "continuous_mode": False,
-                "process_end_time": "23:59"
+                "language": "ja"
             })
             
             # 1. ファイルスキャン
@@ -79,45 +78,7 @@ class TestIntegration:
                         content = f.read()
                     assert f"Transcription for {original_file}" in content
     
-    @patch('faster_whisper.WhisperModel')
-    @patch('main.datetime')
-    def test_time_limited_mode(self, mock_datetime, mock_whisper_model):
-        """時間制限モードのテスト"""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = os.path.join(temp_dir, "config.json")
-            
-            # Whisperモデルのモック
-            mock_model_instance = MagicMock()
-            mock_whisper_model.return_value = mock_model_instance
-            mock_segment = MagicMock()
-            mock_segment.text = "Test transcription"
-            mock_model_instance.transcribe.return_value = ([mock_segment], MagicMock())
-            
-            processor = KoemojiProcessor(config_path)
-            processor.config.update({
-                "continuous_mode": False,
-                "process_end_time": "07:00",
-                "scan_interval_minutes": 0.1  # テスト用に短く設定
-            })
-            
-            # 現在時刻を設定（終了時刻前）
-            mock_datetime.now.return_value = datetime(2024, 1, 15, 6, 30)
-            
-            # メインループをシミュレート（短時間）
-            start_time = time.time()
-            while time.time() - start_time < 1:  # 1秒間だけテスト
-                # 終了時刻に達したことをシミュレート
-                if time.time() - start_time > 0.5:
-                    mock_datetime.now.return_value = datetime(2024, 1, 15, 7, 1)
-                
-                # 処理ループの一部をシミュレート
-                if datetime.now().time() >= processor.get_end_time():
-                    break
-                
-                time.sleep(0.1)
-            
-            # 終了時刻に達したことを確認
-            assert datetime.now().time() >= processor.get_end_time()
+    # test_time_limited_mode removed as time mode is no longer supported
     
     @patch('faster_whisper.WhisperModel')
     def test_error_recovery(self, mock_whisper_model):
@@ -171,8 +132,8 @@ class TestIntegration:
             assert len(output_files) >= 1  # 少なくとも1つのファイルが処理された
     
     @patch('faster_whisper.WhisperModel')
-    def test_continuous_mode_daily_summary(self, mock_whisper_model):
-        """24時間モードでの日次サマリーテスト"""
+    def test_daily_summary(self, mock_whisper_model):
+        """日次サマリーテスト"""
         with tempfile.TemporaryDirectory() as temp_dir:
             config_path = os.path.join(temp_dir, "config.json")
             
@@ -181,9 +142,6 @@ class TestIntegration:
             mock_whisper_model.return_value = mock_model_instance
             
             processor = KoemojiProcessor(config_path)
-            processor.config.update({
-                "continuous_mode": True,
-            })
             
             # 日次サマリー時刻のチェックをシミュレート
             current_time = datetime_time(7, 0)

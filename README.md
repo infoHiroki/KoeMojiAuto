@@ -89,7 +89,7 @@ Whisperモデルを使用した高精度な文字起こしを、WebUIから簡�
 
 - **高精度文字起こし**: Whisperモデル（tiny/small/medium/large）を選択可能
 - **バックグラウンド実行**: 起動後はターミナルを閉じても動作継続
-- **フレキシブルな実行**: 24時間連続（デフォルト）または時間指定モード
+- **連続実行**: 24時間継続的にファイルを監視・処理
 - **ファイルスキャン**: 30分毎にinputフォルダをスキャンして新しいファイルを自動処理
 - **シンプルな管理**: TUI（ターミナルUI）で簡単設定・操作
 - **安全な制御**: 実行・停止・ステータス確認コマンド
@@ -145,9 +145,6 @@ start_webui.bat
 {
   "input_folder": "input",          // 入力フォルダ
   "output_folder": "output",        // 出力フォルダ
-  "continuous_mode": true,          // 24時間モード（true）/時間指定モード（false）
-  "process_start_time": "19:00",    // 処理開始時刻（時間指定モード時）
-  "process_end_time": "07:00",      // 処理終了時刻（時間指定モード時）
   "scan_interval_minutes": 30,      // フォルダスキャン間隔（分）
   "max_concurrent_files": 3,        // 同時処理ファイル数
   "whisper_model": "large",         // Whisperモデル（tiny/small/medium/large）
@@ -181,9 +178,6 @@ start_webui.bat
 ### 24時間連続モード
 一度起動すると、停止するまで継続的にファイルを監視・処理します。
 
-### 時間指定モード
-指定した時間範囲内のみ動作します。例：19:00〜07:00
-
 ## 設定
 
 `config.json` で詳細な設定が可能：
@@ -192,9 +186,6 @@ start_webui.bat
 {
     "input_folder": "input",              // 入力フォルダ（音声・動画ファイルを置く場所）
     "output_folder": "output",            // 出力フォルダ（文字起こしファイルの保存先）
-    "continuous_mode": true,              // 実行モード（true: 24時間連続、false: 時間指定）
-    "process_start_time": "19:00",        // 開始時刻（continuous_mode=false時のみ有効）
-    "process_end_time": "07:00",          // 終了時刻（continuous_mode=false時のみ有効）
     "scan_interval_minutes": 30,          // ファイルスキャン間隔（分）
     "max_concurrent_files": 3,            // 同時処理ファイル数
     "whisper_model": "large",             // Whisperモデルサイズ

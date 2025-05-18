@@ -13,6 +13,8 @@ import logging
 from pathlib import Path
 from datetime import datetime, time as datetime_time
 import psutil
+import signal
+import sys
 import platform
 
 # OS判定  
@@ -32,23 +34,12 @@ file_handler = RotatingFileHandler(
 )
 file_handler.setFormatter(log_formatter)
 
-# コンソールハンドラー
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(log_formatter)
-
-# ルートロガーの設定
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[file_handler, console_handler],
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M'
-)
-
-# 外部ライブラリのログフォーマットも統一
-for handler in logging.root.handlers:
-    handler.setFormatter(log_formatter)
-
+# KoemojiAutoロガーの設定
 logger = logging.getLogger("KoemojiAuto")
+logger.setLevel(logging.INFO)
+logger.handlers.clear()  # 既存のハンドラーをクリア
+logger.addHandler(file_handler)
+logger.propagate = False  # 親ロガーへの伝播を防ぐ
 
 class KoemojiProcessor:
     def __init__(self, config_path="config.json"):
@@ -100,8 +91,6 @@ class KoemojiProcessor:
                 self.config = {
                     "input_folder": input_folder,
                     "output_folder": output_folder,
-                    "process_start_time": "19:00",
-                    "process_end_time": "07:00",
                     "scan_interval_minutes": 30,
                     "max_concurrent_files": 3,
                     "whisper_model": "large",
@@ -138,8 +127,6 @@ class KoemojiProcessor:
             self.config = {
                 "input_folder": "input",
                 "output_folder": "output",
-                "process_start_time": "19:00",
-                "process_end_time": "07:00",
                 "max_concurrent_files": 1,
                 "whisper_model": "tiny",
                 "language": "ja"
@@ -155,12 +142,9 @@ class KoemojiProcessor:
         
         # 不正な値はデフォルトに置換
         defaults = {
-            "process_start_time": "19:00",
-            "process_end_time": "07:00",
             "scan_interval_minutes": 30,
             "max_concurrent_files": 3,
             "max_cpu_percent": 95,
-            "continuous_mode": False,
             "compute_type": "int8"
         }
         for key, default in defaults.items():
@@ -208,11 +192,6 @@ class KoemojiProcessor:
         except Exception as e:
             logger.error(f"❌ 処理済み履歴の保存エラー: {e}")
     
-    def get_end_time(self):
-        """終了時刻を取得"""
-        end_time_str = self.config.get("process_end_time", "07:00")
-        hour, minute = map(int, end_time_str.split(":"))
-        return datetime_time(hour, minute)
     
     def scan_and_queue_files(self):
         """入力フォルダをスキャンしてファイルをキューに追加"""
@@ -567,14 +546,8 @@ class KoemojiProcessor:
                 "自動文字起こしサービスが開始されました"
             )
             
-            # 24時間モードか時間制限モードかを確認
-            continuous_mode = self.config.get("continuous_mode", False)
-            if continuous_mode:
-                logger.info("♾️  24時間連続モードで動作します")
-                end_time = None  # 24時間モードでは終了時刻はない
-            else:
-                end_time = self.get_end_time()
-                logger.info(f"⏰ 時間制限モードで動作します（終了時刻: {end_time}）")
+            # 24時間連続モードで動作
+            logger.info("♾️  24時間連続モードで動作します")
             
             scan_interval = self.config.get("scan_interval_minutes", 30) * 60  # 秒に変換
             last_scan_time = 0
@@ -584,8 +557,8 @@ class KoemojiProcessor:
             self.scan_and_queue_files()
             self.process_queued_files()
             
-            # メインループ
-            while continuous_mode or (end_time and datetime.now().time() < end_time):
+            # メインループ（24時間動作）
+            while True:
                 current_time = time.time()
                 
                 # 日付が変わったら新しい統計エントリを作成（ログベースなので不要）
@@ -609,30 +582,8 @@ class KoemojiProcessor:
                 # 短い待機
                 time.sleep(5)
             
-            # 時間制限モードの終了処理
-            if not continuous_mode:
-                logger.info("⏰ 処理時間が終了しました")
-                
-                # 日次サマリーを生成
-                self.generate_daily_summary()
-                
-                # 終了通知
-                remaining = len(self.processing_queue)
-                today = datetime.now().strftime("%Y-%m-%d")
-                stats = self._collect_stats_from_log(today)
-                processed = stats.get("processed", 0) if stats else 0
-                
-                if remaining > 0:
-                    self.send_notification(
-                        "⏰ KoemojiAuto処理終了",
-                        f"処理完了: {processed}件\n残りキュー: {remaining}件"
-                    )
-                else:
-                    self.send_notification(
-                        "🎉 KoemojiAuto処理完了",
-                        f"すべてのファイル({processed}件)の処理が完了しました"
-                    )
-            
+        except KeyboardInterrupt:
+            logger.info("📛 停止シグナルを受信しました")
         except Exception as e:
             logger.error(f"❌ 処理中にエラーが発生しました: {e}")
         finally:
@@ -642,4 +593,13 @@ class KoemojiProcessor:
 # 実行例
 if __name__ == "__main__":
     processor = KoemojiProcessor()
+    
+    # シグナルハンドラーの設定
+    def signal_handler(sig, frame):
+        logger.info("📛 停止シグナルを受信しました")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     processor.run()

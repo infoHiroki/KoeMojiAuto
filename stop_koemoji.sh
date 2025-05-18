@@ -12,7 +12,7 @@ if [ -n "$PIDS" ]; then
         kill "$PID" 2>/dev/null
     done
     
-    sleep 2
+    sleep 5
     
     # まだ残っていれば強制終了（python3も含む）
     REMAINING_PIDS=$(ps aux | grep -E "[Pp]ython[3]*.*main\.py$" | grep -v grep | awk '{print $2}')
@@ -29,4 +29,4 @@ fi
 # ロックファイルを削除
 rm -f koemoji.lock
 
-echo "停止中です。"
+echo "停止処理が完了しました。"

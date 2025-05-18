@@ -19,7 +19,7 @@ class TestConfig:
             # デフォルト設定の確認
             assert processor.config["input_folder"] == "input"
             assert processor.config["output_folder"] == "output"
-            assert processor.config["process_end_time"] == "07:00"
+            # process_end_time removed
             assert processor.config["whisper_model"] == "large"
             assert processor.config["language"] == "ja"
             
@@ -93,38 +93,6 @@ class TestConfig:
             # reportsディレクトリは常に作業ディレクトリのルートに作成される
             assert os.path.exists("reports")
     
-    def test_get_end_time(self):
-        """終了時刻の取得テスト"""
-        processor = KoemojiProcessor()
-        processor.config["process_end_time"] = "19:30"
-        
-        end_time = processor.get_end_time()
-        assert end_time.hour == 19
-        assert end_time.minute == 30
+    # test_get_end_time removed as time mode is no longer supported
     
-    def test_continuous_mode_setting(self):
-        """連続モード設定のテスト"""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            config_path = os.path.join(temp_dir, "config.json")
-            
-            # 連続モードの設定を含む完全な設定
-            test_config = {
-                "input_folder": "input",
-                "output_folder": "output",
-                "process_end_time": "07:00",
-                "scan_interval_minutes": 30,
-                "max_concurrent_files": 3,
-                "whisper_model": "large",
-                "language": "ja",
-                "compute_type": "int8",
-                "max_cpu_percent": 95,
-                "notification_enabled": True,
-                "continuous_mode": True
-            }
-            
-            with open(config_path, 'w') as f:
-                json.dump(test_config, f)
-            
-            processor = KoemojiProcessor(config_path)
-            
-            assert processor.config["continuous_mode"] is True
+    # test_continuous_mode_setting removed as time mode is no longer supported
