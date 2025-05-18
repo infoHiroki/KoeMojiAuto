@@ -29,4 +29,4 @@ fi
 # ロックファイルを削除
 rm -f koemoji.lock
 
-echo "Done"
+echo "停止中です。"
