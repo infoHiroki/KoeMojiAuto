@@ -29,16 +29,6 @@ Whisperモデルを使用した高精度な文字起こしを、WebUIから簡�
    ### その他の実行方法
    
    <details>
-   <summary>TUIで実行（SSH環境向け）</summary>
-   
-   ```bash
-   ./tui.sh  # macOS/Linux
-   tui.bat   # Windows
-   ```
-   TUIから `[r] 実行` を選択
-   </details>
-   
-   <details>
    <summary>コマンドラインで実行（スクリプト連携向け）</summary>
    
    ```bash
