@@ -425,7 +425,8 @@ def index():
             const config = {
                 whisper_model: document.getElementById('model').value,
                 input_folder: document.getElementById('input_folder').value,
-                output_folder: document.getElementById('output_folder').value
+                output_folder: document.getElementById('output_folder').value,
+                archive_folder: 'archive'  // アーカイブフォルダを追加
             };
             
             fetch('/config', {

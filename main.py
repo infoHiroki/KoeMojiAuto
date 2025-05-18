@@ -10,6 +10,7 @@ import os
 import time
 import json
 import logging
+import shutil
 from pathlib import Path
 from datetime import datetime, time as datetime_time
 import psutil
@@ -47,11 +48,6 @@ class KoemojiProcessor:
         self.config_path = config_path
         self.load_config()
         self.processing_queue = []
-        self.processed_files = set()
-        
-        # 処理済みファイル記録の読み込み
-        self.processed_history_path = Path("processed_files.json")
-        self.load_processed_history()
         
         # 処理中のファイル
         self.files_in_process = set()
@@ -59,10 +55,6 @@ class KoemojiProcessor:
         # Whisperモデルのキャッシュ
         self._whisper_model = None
         self._model_config = None
-        
-        # 日付ごとの処理統計（ログから取得するためメモリ上の管理は不要）
-        # self.daily_stats = {}
-        # self._ensure_daily_stats()  # 今日の統計を初期化
     
     
     def load_config(self):
@@ -92,6 +84,7 @@ class KoemojiProcessor:
                 self.config = {
                     "input_folder": input_folder,
                     "output_folder": output_folder,
+                    "archive_folder": "archive",
                     "scan_interval_minutes": 30,
                     "max_concurrent_files": 3,
                     "whisper_model": "large",
@@ -113,8 +106,8 @@ class KoemojiProcessor:
                 # 設定値の検証
                 self.validate_config()
                 
-            # 入力・出力フォルダの確認と作成
-            for folder_key in ["input_folder", "output_folder"]:
+            # 入力・出力・アーカイブフォルダの確認と作成
+            for folder_key in ["input_folder", "output_folder", "archive_folder"]:
                 folder_path = self.config.get(folder_key)
                 if not os.path.exists(folder_path):
                     os.makedirs(folder_path, exist_ok=True)
@@ -128,6 +121,7 @@ class KoemojiProcessor:
             self.config = {
                 "input_folder": "input",
                 "output_folder": "output",
+                "archive_folder": "archive",
                 "max_concurrent_files": 1,
                 "whisper_model": "tiny",
                 "language": "ja"
@@ -173,26 +167,6 @@ class KoemojiProcessor:
     #     if stat_type in self.daily_stats[today]:
     #         self.daily_stats[today][stat_type] += value
     
-    def load_processed_history(self):
-        """処理済みファイルの履歴を読み込む"""
-        try:
-            if self.processed_history_path.exists():
-                with open(self.processed_history_path, 'r', encoding='utf-8') as f:
-                    self.processed_files = set(json.load(f))
-            else:
-                self.processed_files = set()
-        except Exception as e:
-            logger.error(f"❌ 処理済み履歴の読み込みエラー: {e}")
-            self.processed_files = set()
-    
-    def save_processed_history(self):
-        """処理済みファイルの履歴を保存する"""
-        try:
-            with open(self.processed_history_path, 'w', encoding='utf-8') as f:
-                json.dump(list(self.processed_files), f)
-        except Exception as e:
-            logger.error(f"❌ 処理済み履歴の保存エラー: {e}")
-    
     
     def scan_and_queue_files(self):
         """入力フォルダをスキャンしてファイルをキューに追加"""
@@ -221,9 +195,8 @@ class KoemojiProcessor:
                 if not file.lower().endswith(media_extensions):
                     continue
                 
-                # 既に処理済みまたは処理中、キュー済みのファイルはスキップ
-                file_id = f"{file}_{os.path.getsize(file_path)}"
-                if file_id in self.processed_files or file_path in self.files_in_process or any(f["path"] == file_path for f in self.processing_queue):
+                # 既に処理中またはキュー済みのファイルはスキップ
+                if file_path in self.files_in_process or any(f["path"] == file_path for f in self.processing_queue):
                     continue
                 
                 new_files.append(file_path)
@@ -334,14 +307,13 @@ class KoemojiProcessor:
                 processing_time = time.time() - start_time
                 logger.info(f"✅ 文字起こし完了: {file_name} -> {output_file} (処理時間: {processing_time:.2f}秒)")
                 
-                # 処理済みリストに追加
-                file_id = f"{file_name}_{os.path.getsize(file_path)}"
-                self.processed_files.add(file_id)
-                self.save_processed_history()
+                # アーカイブフォルダに移動
+                archive_folder = self.config.get("archive_folder", "archive")
+                os.makedirs(archive_folder, exist_ok=True)
                 
-                # 統計を記録（ログから取得するため不要）
-                # self.record_stat("processed")
-                # self.record_stat("total_duration", processing_time)
+                archive_path = os.path.join(archive_folder, file_name)
+                shutil.move(file_path, archive_path)
+                logger.info(f"📦 アーカイブ: {file_name} -> {archive_path}")
                 
                 # 通知
                 self.send_notification(
