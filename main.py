@@ -619,7 +619,8 @@ class KoemojiProcessor:
                 # 終了通知
                 remaining = len(self.processing_queue)
                 today = datetime.now().strftime("%Y-%m-%d")
-                processed = self.daily_stats.get(today, {}).get("processed", 0)
+                stats = self._collect_stats_from_log(today)
+                processed = stats.get("processed", 0) if stats else 0
                 
                 if remaining > 0:
                     self.send_notification(
