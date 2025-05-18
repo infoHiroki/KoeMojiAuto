@@ -64,6 +64,7 @@ class KoemojiProcessor:
         # self.daily_stats = {}
         # self._ensure_daily_stats()  # 今日の統計を初期化
     
+    
     def load_config(self):
         """設定ファイルを読み込む"""
         try:
@@ -377,7 +378,11 @@ class KoemojiProcessor:
         """音声ファイルを文字起こし"""
         try:
             from faster_whisper import WhisperModel
-            
+        except ImportError:
+            logger.error("faster_whisperがインストールされていません。pip install faster-whisperを実行してください。")
+            return None
+        
+        try:
             # モデルサイズとコンピュートタイプを設定
             model_size = model_size or self.config.get("whisper_model", "large")
             compute_type = self.config.get("compute_type", "int8")

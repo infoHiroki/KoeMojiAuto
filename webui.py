@@ -614,6 +614,7 @@ def index():
     ''')
 
 @app.route('/status')
+
 def status():
     """ステータス取得"""
     running = is_running()
@@ -633,6 +634,7 @@ def status():
     return jsonify({"running": running, "pid": pid})
 
 @app.route('/config', methods=['GET', 'POST'])
+
 def config():
     """設定の取得・更新"""
     if request.method == 'GET':
@@ -645,6 +647,7 @@ def config():
         return jsonify({"status": "updated"})
 
 @app.route('/start', methods=['POST'])
+
 def start():
     """KoemojiAuto開始"""
     script = './start_koemoji.sh' if os.name != 'nt' else 'start_koemoji.bat'
@@ -652,6 +655,7 @@ def start():
     return jsonify({"status": "started"})
 
 @app.route('/stop', methods=['POST'])
+
 def stop():
     """KoemojiAuto停止"""
     script = './stop_koemoji.sh' if os.name != 'nt' else 'stop_koemoji.bat'
@@ -667,6 +671,7 @@ def stop():
     })
 
 @app.route('/log')
+
 def log():
     """ログ取得（最新30行）"""
     try:
@@ -677,12 +682,14 @@ def log():
         return "ログファイルが見つかりません"
 
 @app.route('/summary/<date_str>')
+
 def get_date_summary(date_str):
     """指定日のサマリーを取得"""
     stats = collect_stats_from_log(date_str)
     return jsonify(stats)
 
 @app.route('/summaries/<int:year>/<int:month>')
+
 def get_month_summaries(year, month):
     """指定月のサマリーを取得"""
     summaries = {}
