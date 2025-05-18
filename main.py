@@ -22,25 +22,13 @@ import platform
 IS_WINDOWS = platform.system() == 'Windows'
 
 # ロギング設定
-from logging.handlers import RotatingFileHandler
-
-# ログローテーションの設定（分単位まで表示）
-log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M')
-
-# ファイルハンドラー（10MBでローテーション、5ファイル保持）
-file_handler = RotatingFileHandler(
-    "koemoji.log",
-    maxBytes=10*1024*1024,  # 10MB
-    backupCount=5           # 5ファイル保持
+logging.basicConfig(
+    filename='koemoji.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M'
 )
-file_handler.setFormatter(log_formatter)
-
-# KoemojiAutoロガーの設定
 logger = logging.getLogger("KoemojiAuto")
-logger.setLevel(logging.INFO)
-logger.handlers.clear()  # 既存のハンドラーをクリア
-logger.addHandler(file_handler)
-logger.propagate = False  # 親ロガーへの伝播を防ぐ
 
 class KoemojiProcessor:
     def __init__(self, config_path="config.json"):
@@ -147,25 +135,6 @@ class KoemojiProcessor:
                 self.config[key] = default
     
     
-    # 以下のメソッドはログベースの集計に移行したため不要
-    # def _ensure_daily_stats(self):
-    #     """今日の統計エントリを確保"""
-    #     today = datetime.now().strftime("%Y-%m-%d")
-    #     if today not in self.daily_stats:
-    #         self.daily_stats[today] = {
-    #             "queued": 0,
-    #             "processed": 0,
-    #             "failed": 0,
-    #             "total_duration": 0,
-    #             "date": today
-    #         }
-    
-    # def record_stat(self, stat_type, value=1):
-    #     """統計を記録（日付ごと）"""
-    #     self._ensure_daily_stats()
-    #     today = datetime.now().strftime("%Y-%m-%d")
-    #     if stat_type in self.daily_stats[today]:
-    #         self.daily_stats[today][stat_type] += value
     
     
     def scan_and_queue_files(self):
@@ -221,8 +190,6 @@ class KoemojiProcessor:
                 self.processing_queue.append(file_info)
                 logger.info(f"➕ キューに追加: {file_name}")
                 
-                # 統計を記録（ログから取得するため不要）
-                # self.record_stat("queued")
             
             logger.info(f"📋 現在のキュー: {len(self.processing_queue)}件")
             
@@ -322,8 +289,7 @@ class KoemojiProcessor:
                 )
             else:
                 logger.error(f"❌ 文字起こし失敗: {file_name}")
-                # 統計を記録（ログから取得するため不要）
-                # self.record_stat("failed")
+                
                 
                 # エラー通知
                 self.send_notification(
@@ -333,8 +299,7 @@ class KoemojiProcessor:
         
         except Exception as e:
             logger.error(f"❌ ファイル処理中にエラーが発生しました: {file_path} - {e}")
-            # 統計を記録（ログから取得するため不要）
-            # self.record_stat("failed")
+            
             
             # エラー通知
             self.send_notification(
@@ -416,14 +381,6 @@ class KoemojiProcessor:
             
             # ログに記録
             logger.info(summary.replace('\n', ' '))
-            
-            # サマリーファイルに保存（WebUIがあるため不要）
-            # summary_dir = "reports"
-            # os.makedirs(summary_dir, exist_ok=True)
-            # 
-            # summary_file = os.path.join(summary_dir, f"daily_summary_{target_date}.txt")
-            # with open(summary_file, 'w', encoding='utf-8') as f:
-            #     f.write(summary)
             
             # 通知送信
             self.send_notification(
@@ -538,8 +495,7 @@ class KoemojiProcessor:
             while True:
                 current_time = time.time()
                 
-                # 日付が変わったら新しい統計エントリを作成（ログベースなので不要）
-                # self._ensure_daily_stats()
+                
                 
                 # 定期的にファイルをスキャン
                 if current_time - last_scan_time >= scan_interval:

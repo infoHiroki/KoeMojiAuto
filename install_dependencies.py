@@ -75,13 +75,32 @@ def install_ffmpeg():
             sys.exit(1)
     
     elif system == "windows":
-        print("\nWindows環境でのFFmpegインストール:")
-        print("1. https://ffmpeg.org/download.html からWindows用バイナリをダウンロード")
-        print("2. ZIPファイルを展開し、適当な場所（例: C:\\ffmpeg）に配置")
-        print("3. システム環境変数のPATHに ffmpeg.exe のあるフォルダを追加")
-        print("4. コマンドプロンプトを再起動して 'ffmpeg -version' で確認")
-        print("\n詳細な手順は https://ffmpeg.org/download.html#build-windows を参照してください。")
-        sys.exit(1)
+        # まずChocolateyでインストールを試みる
+        try:
+            # Chocolateyがインストールされているか確認
+            subprocess.run(["choco", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            print("Chocolateyが検出されました。FFmpegをインストールしています...")
+            
+            try:
+                # 管理者権限が必要な場合があるので、エラーハンドリングを追加
+                subprocess.run(["choco", "install", "ffmpeg", "-y", "--no-progress"], check=True)
+                print("FFmpegのインストールが完了しました。")
+                print("新しいコマンドプロンプトを開いて使用してください。")
+            except subprocess.CalledProcessError:
+                print("Chocolateyでのインストールに失敗しました。")
+                print("管理者権限でコマンドプロンプトを開いて実行するか、手動インストールをお試しください。")
+                raise
+                
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            # Chocolateyがない、または失敗した場合は手動インストールの案内
+            print("\nChocolateyがインストールされていないか、インストールに失敗しました。")
+            print("\n以下の方法でFFmpegを手動インストールしてください:")
+            print("1. https://ffmpeg.org/download.html からWindows用バイナリをダウンロード")
+            print("2. ZIPファイルを展開し、適当な場所（例: C:\\ffmpeg）に配置")
+            print("3. システム環境変数のPATHに ffmpeg.exe のあるフォルダを追加")
+            print("4. コマンドプロンプトを再起動して 'ffmpeg -version' で確認")
+            print("\n詳細な手順は https://ffmpeg.org/download.html#build-windows を参照してください。")
+            sys.exit(1)
     else:
         print(f"サポートされていないシステム: {system}")
         print("FFmpegを手動でインストールしてください。")
@@ -154,7 +173,7 @@ def verify_installations():
     # その他の依存関係を確認
     dependencies_ok = True
     try:
-        subprocess.run([sys.executable, "-c", "import psutil; import notifypy"], check=True)
+        subprocess.run([sys.executable, "-c", "import psutil; import flask"], check=True)
         print("その他の依存関係: ✅ インストール済み")
     except subprocess.CalledProcessError:
         print("その他の依存関係: ❌ 一部不足しています")
