@@ -463,6 +463,14 @@ class KoemojiProcessor:
     def run(self):
         """メイン処理ループ"""
         try:
+            # Windows用PIDファイル作成
+            if IS_WINDOWS:
+                try:
+                    with open('koemoji.pid', 'w') as f:
+                        f.write(str(os.getpid()))
+                except Exception as e:
+                    logger.warning(f"PIDファイルの作成に失敗しました: {e}")
+            
             # 既に実行中かチェック
             if self.is_already_running():
                 logger.error("⚠️  既に別のKoemojiAutoプロセスが実行中です。")
@@ -520,6 +528,13 @@ class KoemojiProcessor:
         except Exception as e:
             logger.error(f"❌ 処理中にエラーが発生しました: {e}")
         finally:
+            # Windows用PIDファイル削除
+            if IS_WINDOWS and os.path.exists('koemoji.pid'):
+                try:
+                    os.remove('koemoji.pid')
+                except Exception as e:
+                    logger.warning(f"PIDファイルの削除に失敗しました: {e}")
+            
             logger.info("👋 KoemojiAutoを終了しました")
 
 
