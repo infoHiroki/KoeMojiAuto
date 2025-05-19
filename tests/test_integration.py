@@ -17,11 +17,9 @@ class TestIntegration:
             config_path = os.path.join(temp_dir, "config.json")
             input_dir = os.path.join(temp_dir, "input")
             output_dir = os.path.join(temp_dir, "output")
-            reports_dir = os.path.join(temp_dir, "reports")
             
             os.makedirs(input_dir, exist_ok=True)
             os.makedirs(output_dir, exist_ok=True)
-            os.makedirs(reports_dir, exist_ok=True)
             
             # テスト用ファイルの作成
             test_files = ["test1.mp3", "test2.wav", "urgent_test3.m4a"]
