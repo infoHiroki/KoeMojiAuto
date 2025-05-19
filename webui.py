@@ -226,38 +226,6 @@ def index():
             outline: none;
             border-color: #3498db;
         }
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin: 20px 0;
-            border-bottom: 2px solid #e4e5e7;
-        }
-        .tab {
-            background: none;
-            border: none;
-            padding: 12px 20px;
-            color: #65676b;
-            font-size: 16px;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -2px;
-            transition: all 0.2s;
-        }
-        .tab:hover {
-            color: #1877f2;
-            background-color: #f0f2f5;
-        }
-        .tab.active {
-            color: #1877f2;
-            border-bottom-color: #1877f2;
-            font-weight: 600;
-        }
-        .tab-content {
-            display: none;
-        }
-        .tab-content.active {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -284,14 +252,7 @@ def index():
             </button>
         </div>
         
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('config')">
-                <i class="fas fa-cog"></i> 設定
-            </button>
-        </div>
-        
-        <div id="configTab" class="tab-content active">
-            <div class="config">
+        <div class="config">
                 <h3><i class="fas fa-cog"></i> 設定</h3>
             <div class="config-item">
                 <label>Whisperモデル:</label>
@@ -315,7 +276,6 @@ def index():
             <div>
                 <h3><i class="fas fa-terminal"></i> ログ</h3>
                 <div id="log" class="log">Loading logs...</div>
-            </div>
         </div>
     </div>
     
@@ -441,17 +401,6 @@ def index():
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fas fa-sync-alt"></i> ステータス更新';
             }, 1000);
-        }
-        
-        // タブ切り替え
-        function switchTab(tabName) {
-            // タブボタンの状態を更新
-            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            // タブコンテンツの表示切り替え
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-            document.getElementById(tabName + 'Tab').classList.add('active');
         }
         
         // 初期化
