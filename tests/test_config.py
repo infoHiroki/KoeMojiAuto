@@ -81,17 +81,12 @@ class TestConfig:
             with open(config_path, 'w') as f:
                 json.dump(test_config, f)
             
-            # reportsディレクトリのパスを設定
-            reports_dir = os.path.join(temp_dir, "reports")
-            
             # プロセッサー初期化時にディレクトリが作成される
             processor = KoemojiProcessor(config_path)
             
             # ディレクトリが作成されたことを確認
             assert os.path.exists(test_config["input_folder"])
             assert os.path.exists(test_config["output_folder"])
-            # reportsディレクトリは常に作業ディレクトリのルートに作成される
-            assert os.path.exists("reports")
     
     # test_get_end_time removed as time mode is no longer supported
     

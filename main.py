@@ -351,87 +351,6 @@ class KoemojiProcessor:
             logger.error(f"❌ 文字起こし処理中にエラーが発生しました: {e}")
             return None
     
-    def generate_daily_summary_for_date(self, date_obj):
-        """指定日の処理サマリーを生成"""
-        try:
-            # 日付をフォーマット
-            target_date = date_obj.strftime("%Y-%m-%d")
-            logger.info(f"📊 {target_date}の日次サマリーを生成しています")
-            
-            # ログファイルから統計を集計
-            stats = self._collect_stats_from_log(target_date)
-            
-            if stats is None:
-                logger.error("ログファイルを読み込めませんでした")
-                return
-            
-            # 平均処理時間を計算（現時点では0）
-            avg_duration = 0  # 時間集計は今回は実装しない
-            
-            # サマリーメッセージを作成
-            summary = (
-                f"Koemoji処理サマリー ({target_date})\n"
-                f"------------------------\n"
-                f"キュー追加: {stats['queued']}件\n"
-                f"処理完了: {stats['processed']}件\n"
-                f"処理失敗: {stats['failed']}件\n"
-                f"残りキュー: {len(self.processing_queue)}件\n"
-                f"------------------------\n"
-            )
-            
-            # ログに記録
-            logger.info(summary.replace('\n', ' '))
-            
-            # 通知送信
-            self.send_notification(
-                f"📊 Koemoji日次サマリー ({target_date})",
-                f"処理完了: {stats['processed']}件\n"
-                f"処理失敗: {stats['failed']}件\n"
-                f"残りキュー: {len(self.processing_queue)}件"
-            )
-        
-        except Exception as e:
-            logger.error(f"❌ 日次サマリー生成中にエラーが発生しました: {e}")
-    
-    def generate_daily_summary(self):
-        """今日の処理サマリーを生成（互換性のため残す）"""
-        self.generate_daily_summary_for_date(datetime.now().date())
-    
-    def _collect_stats_from_log(self, target_date):
-        """ログファイルから指定日の統計を集計"""
-        try:
-            stats = {
-                "queued": 0,
-                "processed": 0,
-                "failed": 0,
-                "date": target_date
-            }
-            
-            # ログファイルを開いて読み込む
-            log_path = "koemoji.log"
-            if not os.path.exists(log_path):
-                return stats  # ファイルがなければ空の統計を返す
-            
-            with open(log_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    # 日付が含まれているか確認
-                    if target_date not in line:
-                        continue
-                    
-                    # 各種イベントをカウント
-                    if "➕ キューに追加" in line:
-                        stats["queued"] += 1
-                    elif "✅ 文字起こし完了" in line:
-                        stats["processed"] += 1
-                    elif "❌ 文字起こし失敗" in line:
-                        stats["failed"] += 1
-            
-            return stats
-            
-        except Exception as e:
-            logger.error(f"ログファイルの読み込み中にエラーが発生しました: {e}")
-            return None
-    
     def send_notification(self, title, message):
         """通知をログに記録する"""
         logger.info(f"{title} - {message}")
@@ -493,7 +412,6 @@ class KoemojiProcessor:
             
             scan_interval = self.config.get("scan_interval_minutes", 30) * 60  # 秒に変換
             last_scan_time = 0
-            last_summary_date = datetime.now().date()  # 現在の日付で初期化
             
             # 初回スキャン
             self.scan_and_queue_files()
@@ -512,13 +430,6 @@ class KoemojiProcessor:
                 
                 # キューのファイルを処理
                 self.process_queued_files()
-                
-                # 日付が変わったらサマリーを生成
-                current_date = datetime.now().date()
-                if last_summary_date != current_date and last_summary_date is not None:
-                    # 前日のサマリーを生成
-                    self.generate_daily_summary_for_date(last_summary_date)
-                    last_summary_date = current_date
                 
                 # 短い待機
                 time.sleep(5)

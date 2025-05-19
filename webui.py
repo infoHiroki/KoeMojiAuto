@@ -5,7 +5,6 @@ import os
 import json
 import psutil
 from datetime import datetime
-import calendar
 
 app = Flask(__name__, static_folder='static')
 
@@ -259,55 +258,6 @@ def index():
         .tab-content.active {
             display: block;
         }
-        .summary-container {
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .summary-list {
-            margin-top: 20px;
-        }
-        .summary-item {
-            background-color: #f8f9fc;
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 16px;
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-        .summary-item:hover {
-            background-color: #f0f2f5;
-            transform: translateY(-1px);
-        }
-        .summary-date {
-            font-weight: 600;
-            font-size: 18px;
-            color: #1c1e21;
-            margin-bottom: 12px;
-        }
-        .summary-stats {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-        .stat-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .stat-count {
-            font-weight: 500;
-            font-size: 16px;
-        }
-        .stat-label {
-            color: #65676b;
-            font-size: 14px;
-        }
-        .no-data {
-            text-align: center;
-            color: #adb5bd;
-            padding: 40px;
-            font-size: 16px;
-        }
     </style>
 </head>
 <body>
@@ -338,9 +288,6 @@ def index():
             <button class="tab active" onclick="switchTab('config')">
                 <i class="fas fa-cog"></i> 設定
             </button>
-            <button class="tab" onclick="switchTab('summary')">
-                <i class="fas fa-list"></i> サマリー
-            </button>
         </div>
         
         <div id="configTab" class="tab-content active">
@@ -368,18 +315,6 @@ def index():
             <div>
                 <h3><i class="fas fa-terminal"></i> ログ</h3>
                 <div id="log" class="log">Loading logs...</div>
-            </div>
-        </div>
-        
-        <div id="summaryTab" class="tab-content">
-            <div class="summary-container">
-                <h3><i class="fas fa-list"></i> 処理サマリー一覧</h3>
-                <div class="summary-list" id="summaryList">
-                    <div style="text-align: center; padding: 40px;">
-                        <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-                        <p>読み込み中...</p>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -517,88 +452,6 @@ def index():
             // タブコンテンツの表示切り替え
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
             document.getElementById(tabName + 'Tab').classList.add('active');
-            
-            // サマリータブの場合は一覧を読み込み
-            if (tabName === 'summary') {
-                loadSummaryList();
-            }
-        }
-        
-        // サマリー一覧関連
-        function loadSummaryList() {
-            const summaryList = document.getElementById('summaryList');
-            summaryList.innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 24px;"></i>
-                    <p>読み込み中...</p>
-                </div>
-            `;
-            
-            // 直近30日分のサマリーを取得
-            const end = new Date();
-            const start = new Date();
-            start.setDate(start.getDate() - 30);
-            
-            const summaries = [];
-            const promises = [];
-            
-            // 各日のサマリーを取得
-            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                const dateStr = d.toISOString().split('T')[0];
-                const url = `/summary/${dateStr}`;
-                promises.push(
-                    fetch(url)
-                        .then(res => res.json())
-                        .then(data => ({ date: dateStr, stats: data }))
-                        .catch(() => ({ date: dateStr, stats: null }))
-                );
-            }
-            
-            Promise.all(promises).then(results => {
-                const filteredResults = results.filter(r => 
-                    r.stats && (r.stats.queued > 0 || r.stats.processed > 0 || r.stats.failed > 0)
-                );
-                
-                if (filteredResults.length === 0) {
-                    summaryList.innerHTML = '<div class="no-data">処理履歴がありません</div>';
-                    return;
-                }
-                
-                // 日付の降順でソート
-                filteredResults.sort((a, b) => b.date.localeCompare(a.date));
-                
-                // 一覧を表示
-                summaryList.innerHTML = filteredResults.map(result => `
-                    <div class="summary-item">
-                        <div class="summary-date">${formatDate(result.date)}</div>
-                        <div class="summary-stats">
-                            <div class="stat-item">
-                                <span style="color: #42b883;">➕</span>
-                                <span class="stat-count">${result.stats.queued}</span>
-                                <span class="stat-label">キュー追加</span>
-                            </div>
-                            <div class="stat-item">
-                                <span style="color: #42b883;">✅</span>
-                                <span class="stat-count">${result.stats.processed}</span>
-                                <span class="stat-label">処理完了</span>
-                            </div>
-                            ${result.stats.failed > 0 ? `
-                                <div class="stat-item">
-                                    <span style="color: #e74c3c;">❌</span>
-                                    <span class="stat-count">${result.stats.failed}</span>
-                                    <span class="stat-label">処理失敗</span>
-                                </div>
-                            ` : ''}
-                        </div>
-                    </div>
-                `).join('');
-            });
-        }
-        
-        function formatDate(dateStr) {
-            const date = new Date(dateStr);
-            const weeks = ['日', '月', '火', '水', '木', '金', '土'];
-            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${weeks[date.getDay()]})`;
         }
         
         // 初期化
@@ -681,64 +534,6 @@ def log():
             return ''.join(lines[-30:])
     except:
         return "ログファイルが見つかりません"
-
-@app.route('/summary/<date_str>')
-
-def get_date_summary(date_str):
-    """指定日のサマリーを取得"""
-    stats = collect_stats_from_log(date_str)
-    return jsonify(stats)
-
-@app.route('/summaries/<int:year>/<int:month>')
-
-def get_month_summaries(year, month):
-    """指定月のサマリーを取得"""
-    summaries = {}
-    
-    # 月の日数を取得
-    num_days = calendar.monthrange(year, month)[1]
-    
-    # 各日のログから統計を集計
-    for day in range(1, num_days + 1):
-        date_str = f"{year:04d}-{month:02d}-{day:02d}"
-        stats = collect_stats_from_log(date_str)
-        if stats and (stats['queued'] > 0 or stats['processed'] > 0 or stats['failed'] > 0):
-            summaries[date_str] = stats
-    
-    return jsonify(summaries)
-
-def collect_stats_from_log(target_date):
-    """ログファイルから指定日の統計を集計"""
-    try:
-        stats = {
-            "queued": 0,
-            "processed": 0,
-            "failed": 0
-        }
-        
-        log_path = "koemoji.log"
-        if not os.path.exists(log_path):
-            return stats
-        
-        with open(log_path, 'r', encoding='utf-8') as f:
-            for line in f:
-                # ログの日付部分（行頭）と一致するかチェック
-                if not line.startswith(target_date):
-                    continue
-                
-                # 各種イベントをカウント（絵文字あり・なし両方に対応）
-                if "➕ キューに追加" in line or "キューに追加:" in line:
-                    stats["queued"] += 1
-                elif "✅ 文字起こし完了" in line or "文字起こし完了:" in line:
-                    stats["processed"] += 1
-                elif "❌ 文字起こし失敗" in line or "文字起こし失敗:" in line:
-                    stats["failed"] += 1
-        
-        return stats
-        
-    except Exception as e:
-        print(f"ログファイルの読み込み中にエラーが発生しました: {e}")
-        return None
 
 
 if __name__ == '__main__':
